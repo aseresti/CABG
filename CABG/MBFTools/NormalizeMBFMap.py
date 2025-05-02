@@ -21,7 +21,7 @@ class MBFNormalization():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-InputMBFMap", "--InputMBFMap", dest = "InputMBFMap", type = str, required = True)
-    parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = str, required = False, default = "ImageScalars")
+    parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = str, required = False, default = "scalars")
     args = parser.parse_args()
     
     MBFNormalization(args).Normalize()
