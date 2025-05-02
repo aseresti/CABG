@@ -5,7 +5,7 @@ import os
 from glob import glob
 from scipy.spatial import distance as DISTANCE
 import argparse
-from SimVascularTools.utilities import *
+from utilities import *
 
 class ImageAnalysisMyocardiumCoronaryTerritories():
 	def __init__(self,Args):
@@ -197,7 +197,7 @@ if __name__=="__main__":
 	parser.add_argument('-VesselSurfaces', '--VesselSurfaces', type=str, required=True, dest="VesselSurfaces",help="Folder that contains the centerline files labels into L_*.vtp and R_*.vtp tags.")
 	
         #Array Name of the Data
-	parser.add_argument('-ArrayName', '--ArrayName', type=str, required=False, default="ImageScalars", dest="ArrayName",help="The name of the array containing the MBF values.")
+	parser.add_argument('-ArrayName', '--ArrayName', type=str, required=False, default="scalars", dest="ArrayName",help="The name of the array containing the MBF values.")
 
         #Output argumenets
 	parser.add_argument('-OutputFileName', '--OutputFileName', type=str, required=False, dest="OutputFileName",help="The output filename of the volumetric data with territories")
