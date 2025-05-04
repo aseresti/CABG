@@ -64,13 +64,21 @@ class CompareMorphology():
         return Surface
 
     def ExtractWallThicknessInTerritory(self, Surface):
-        
+        pass
 
     def PlotResults(self):
         pass
 
     def main(self):
         pass
+
+    def ThresholdInBetween(self,Volume,arrayname,value1,value2):
+        Threshold=vtk.vtkThreshold()
+        Threshold.SetInputData(Volume)
+        Threshold.ThresholdBetween(value1,value2)
+        Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
+        Threshold.Update()
+        return Threshold.GetOutput()
 
     def ReadVTPFile(self, FileName):
         reader=vtk.vtkXMLPolyDataReader()
