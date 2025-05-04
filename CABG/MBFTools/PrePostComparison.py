@@ -6,9 +6,9 @@ from utilities import ReadVTUFile, ThresholdInBetween
 
 class PrePostMBFMap():
     def __init__(self, args):
-        self.MBF_A = ReadVTUFile(args.InputMBFA)
-        self.MBF_B = ReadVTUFile(args.InputMBFB)
-        self.InputLabels = args.InputLabels
+        self.MBF_A = ReadVTUFile(f"{args.InputFolder}/{args.InputMBF}")
+        self.MBF_B = ReadVTUFile(f"{args.InputFolder[:-1]}B/{args.InputMBF}")
+        self.InputLabels = f"{args.InputFolder[:-1]}B/{args.InputLabels}"
 
     def ReadTerritoryMBF(self, MBFMap, MBF_Labels):
         MBF_data = {"LAD": np.array([]), "LCx": np.array([]), "Intermedius": np.array([]), "Diag1": np.array([]), "Diag2": np.array([]), "PDA": np.array([]), "PL": np.array([])}
@@ -70,9 +70,9 @@ class PrePostMBFMap():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-InputMBFA", "--InputMBFA", dest= "InputMBFA", type= str, required= True)
-    parser.add_argument("-InputMBFB", "--InputMBFB", dest= "InputMBFB", type= str, required= True)
-    parser.add_argument("-InputLabels", "--InputLabels", dest= "InputLabels", type= str, required= True)
+    parser.add_argument("-InputFolderPre", "--InputFolderPre", type=str, required= True, dest= "InputFolder")
+    parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= False, default= "MBF_Territories.vtu")
+    parser.add_argument("-InputLabels", "--InputLabels", dest= "InputLabels", type= str, required= False, default= "MBF_Territories_Labels.dat")
     args = parser.parse_args()
 
     PrePostMBFMap(args).main()
