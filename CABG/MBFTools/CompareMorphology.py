@@ -108,20 +108,20 @@ class CompareMorphology(PrePostMBFMap):
         data = {"parameter":[], "Time":[], "Value":[]}
         print("Cavity of Volume- PreCABG: ", Volume_A)
         print("Cavity of Volume- PostCABG: ", Volume_B)
-        data["parameter"].extend(["Cavity Volume", "Cavity Volume"])
-        data["Time"].extend(["PreCABG (mL)", "PostCABG (mL)"])
+        data["parameter"].extend(["LV Cavity", "LV Cavity"])
+        data["Time"].extend(["Volume-Pre (mL)", "Volume-Post (mL)"])
         data["Value"].extend([Volume_A, Volume_B])
 
         print("EndoCardium Surface- PreCABG: ", Surface_A_Endo)
         print("EndoCardium Surface- PostCABG: ", Surface_B_Endo)
-        data["parameter"].extend(["Endo Surface", "Endo Surface"])
-        data["Time"].extend(["PreCABG (cm^2)", "PostCABG (cm^2)"])
+        data["parameter"].extend(["Endocardium", "Endocardium"])
+        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post (cm^2)"])
         data["Value"].extend([Surface_A_Endo, Surface_B_Endo])
 
         print("EndoCardium Surface- PreCABG: ", Surface_A_Epi)
         print("EndoCardium Surface- PostCABG: ", Surface_B_Epi)
-        data["parameter"].extend(["Epi Surface", "Epi Surface"])
-        data["Time"].extend(["PreCABG (cm^2)", "PostCABG (cm^2)"])
+        data["parameter"].extend(["Epicardium", "Epicardium"])
+        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post (cm^2)"])
         data["Value"].extend([Surface_A_Epi, Surface_B_Epi])
 
         Epicardium_WT_A = self.ComputeWallThickness(self.Endocardium_A, self.Epicardium_A)
@@ -137,8 +137,8 @@ class CompareMorphology(PrePostMBFMap):
 
         for key in WallThickness_Data_A.keys():
             print(key, np.mean(WallThickness_Data_A[key]), np.mean(WallThickness_Data_B[key]))
-            data["parameter"].extend([f"{key}_WallThickness", f"{key}_WallThickness"])
-            data["Time"].extend(["PreCABG (0.1mm)", "PostCABG (0.1mm)"])
+            data["parameter"].extend([key, key])
+            data["Time"].extend(["WallThickness-Pre (0.1mm)", "WallThickness-Post (0.1mm)"])
             data["Value"].extend([np.mean(WallThickness_Data_A[key])*100, np.mean(WallThickness_Data_B[key])*100])
 
         #Epicardium_WT_Territory_A.GetPointData().GetArray("Distance")
