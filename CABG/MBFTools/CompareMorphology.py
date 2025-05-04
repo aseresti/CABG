@@ -4,7 +4,8 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
-from MBFTools.PrePostComparison import PrePostMBFMap
+from PrePostComparison import PrePostMBFMap
+from utilities import ReadVTPFile, ReadVTUFile, WriteVTPFile
 
 class CompareMorphology(PrePostMBFMap):
     def __init__(self, args):
@@ -12,15 +13,17 @@ class CompareMorphology(PrePostMBFMap):
         InputFolderA = args.InputFolder
         InputFolderB = f"{InputFolderA[:-1]}B"
         
-        self.CavityCapped_A = self.ReadVTPFile(f"{InputFolderA}/Morphology/{args.CavityCapped}")
-        self.Endocardium_A = self.ReadVTPFile(f"{InputFolderA}/Morphology/{args.Endocardium}")
-        self.Epicardium_A = self.ReadVTPFile(f"{InputFolderA}/Morphology/{args.Epicardium}")
-        self.MBFTerritories_A = self.ReadVTUFile(f"{InputFolderA}/{args.MBFTerritories}")
+        self.CavityCapped_A = ReadVTPFile(f"{InputFolderA}/Morphology/{args.CavityCapped}")
+        self.Endocardium_A = ReadVTPFile(f"{InputFolderA}/Morphology/{args.Endocardium}")
+        self.Epicardium_A = ReadVTPFile(f"{InputFolderA}/Morphology/{args.Epicardium}")
+        self.MBFTerritories_A = ReadVTUFile(f"{InputFolderA}/{args.MBFTerritories}")
+        self.output_surface_A = os.path.join(f"{InputFolderA}/Morphology", os.path.splitext(args.Epicardium)[0] + "_WallThickness.vtp")
 
-        self.CavityCapped_B = self.ReadVTPFile(f"{InputFolderB}/Morphology/{args.CavityCapped}")
-        self.Endocardium_B = self.ReadVTPFile(f"{InputFolderB}/Morphology/{args.Endocardium}")
-        self.Epicardium_B = self.ReadVTPFile(f"{InputFolderB}/Morphology/{args.Epicardium}")
-        self.MBFTerritories_B = self.ReadVTUFile(f"{InputFolderB}/{args.MBFTerritories}")
+        self.CavityCapped_B = ReadVTPFile(f"{InputFolderB}/Morphology/{args.CavityCapped}")
+        self.Endocardium_B = ReadVTPFile(f"{InputFolderB}/Morphology/{args.Endocardium}")
+        self.Epicardium_B = ReadVTPFile(f"{InputFolderB}/Morphology/{args.Epicardium}")
+        self.MBFTerritories_B = ReadVTUFile(f"{InputFolderB}/{args.MBFTerritories}")
+        self.output_surface_B = os.path.join(f"{InputFolderB}/Morphology", os.path.splitext(args.Epicardium)[0] + "_WallThickness.vtp")
 
     def ComputeVolume(self, ClosedSurface):
         MassProp = vtk.vtkMassProperties()
@@ -29,7 +32,7 @@ class CompareMorphology(PrePostMBFMap):
         
         return MassProp.GetVolume()
     
-    def ComputeSurface(self, Surface):
+    def ComputeSurfaceArea(self, Surface):
         MassProp = vtk.vtkMassProperties()
         MassProp.SetInputData(Surface)
         MassProp.Update()
@@ -83,7 +86,25 @@ class CompareMorphology(PrePostMBFMap):
         pass
 
     def main(self):
-        pass
+        Volume_A = self.ComputeVolume(self.CavityCapped_A)
+        Volume_B = self.ComputeVolume(self.CavityCapped_B)
+
+        Surface_A = self.ComputeSurfaceArea(self.Endocardium_A)
+        Surface_B = self.ComputeSurfaceArea(self.Endocardium_B)
+
+        print("Cavity of Volume- PreCABG: ", Volume_A)
+        print("Cavity of Volume- PostCABG: ", Volume_B)
+        print("EndoCardium Surface- PreCABG: ", Surface_A)
+        print("EndoCardium Surface- PostCABG: ", Surface_B)
+
+        Epicardium_WT_A = self.ComputeWallThickness(self.Endocardium_A, self.Epicardium_A)
+        Epicardium_WT_B = self.ComputeWallThickness(self.Endocardium_B, self.Epicardium_B)
+        Epicardium_WT_Territory_A = self.ProjectTerritories(Epicardium_WT_A, self.MBFTerritories_A)
+        Epicardium_WT_Territory_B = self.ProjectTerritories(Epicardium_WT_B, self.MBFTerritories_B)
+
+        WriteVTPFile(self.output_surface_A, Epicardium_WT_Territory_A)
+        WriteVTPFile(self.output_surface_B, Epicardium_WT_Territory_B)
+
 
     def ThresholdInBetweenPoints(self, Surface, arrayname, value1, value2):
         Threshold=vtk.vtkThresholdPoints()
@@ -93,25 +114,6 @@ class CompareMorphology(PrePostMBFMap):
         Threshold.Update()
         return Threshold.GetOutput()
 
-    def ReadVTPFile(self, FileName):
-        reader=vtk.vtkXMLPolyDataReader()
-        reader.SetFileName(FileName)
-        reader.Update()
-        
-        return reader.GetOutput()
-    
-    def WriteVTPFile(self, FileName, Data):
-        writer=vtk.vtkXMLPolyDataWriter()
-        writer.SetFileName(FileName)
-        writer.SetInputData(Data)
-        writer.Update()
-
-    def ReadVTUFile(self, FileName):
-        reader=vtk.vtkXMLUnstructuredGridReader()
-        reader.SetFileName(FileName)
-        reader.Update()
-        
-        return reader.GetOutput()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -119,8 +121,8 @@ if __name__ == "__main__":
     parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= False, default= "MBF_Territories.vtu")
     parser.add_argument("-InputLabels", "--InputLabels", dest= "InputLabels", type= str, required= False, default= "MBF_Territories_Labels.dat")
     parser.add_argument("-CavityCapped", default= "CavityCapped.vtp", required= False, type= str, dest= "CavityCapped")
-    parser.add_argument("-Endocardium", default= "Endocardium", required= False, type= str, dest= "Endocardium")
-    parser.add_argument("-Epicardium", default= "Epicardium", required= False, type= str, dest= "Epicardium")
+    parser.add_argument("-Endocardium", default= "Endocardium.vtp", required= False, type= str, dest= "Endocardium")
+    parser.add_argument("-Epicardium", default= "Epicardium.vtp", required= False, type= str, dest= "Epicardium")
     parser.add_argument("-MBFTerritories", default= "MBF_Territories.vtu", required= False, type= str, dest= "MBFTerritories")
 
     args = parser.parse_args()
