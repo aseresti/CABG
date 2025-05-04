@@ -2,9 +2,11 @@ import os
 import vtk
 import argparse
 import matplotlib.pyplot as plt
+from MBFTools.PrePostComparison import PrePostMBFMap
 
-class CompareMorphology():
+class CompareMorphology(PrePostMBFMap):
     def __init__(self, args):
+        super().__init__(args)
         InputFolderA = args.InputFolder
         InputFolderB = f"{InputFolderA[:-1]}B"
         
@@ -64,7 +66,10 @@ class CompareMorphology():
         return Surface
 
     def ExtractWallThicknessInTerritory(self, Surface):
-        pass
+        TerritoryMaps = Surface.GetPointData().GetArray("TerritoryMaps")
+        min_territory, max_territory = TerritoryMaps.GetRange()
+        for i in range(min_territory, max_territory):
+            pass
 
     def PlotResults(self):
         pass
@@ -103,6 +108,8 @@ class CompareMorphology():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-InputFolderPre", "--InputFolderPre", type= str, required= True, dest= "InputFolder")
+    parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= False, default= "MBF_Territories.vtu")
+    parser.add_argument("-InputLabels", "--InputLabels", dest= "InputLabels", type= str, required= False, default= "MBF_Territories_Labels.dat")
     parser.add_argument("-CavityCapped", default= "CavityCapped.vtp", required= False, type= str, dest= "CavityCapped")
     parser.add_argument("-Endocardium", default= "Endocardium", required= False, type= str, dest= "Endocardium")
     parser.add_argument("-Epicardium", default= "Epicardium", required= False, type= str, dest= "Epicardium")
