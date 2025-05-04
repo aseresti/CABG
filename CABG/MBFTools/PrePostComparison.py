@@ -28,7 +28,7 @@ class PrePostMBFMap():
         IndexMBF = []
         colors = []
         for (i, key) in enumerate(MBF_Labels.keys()):
-            if len(MBF_data_pre[key]) is not 0:
+            if len(MBF_data_pre[key]) > 0:
                 Labels.append(f'{key}_pre')
                 Labels.append(f'{key}_post')
                 IndexMBF.append(MBF_data_pre[key])
