@@ -1,7 +1,9 @@
 import os
 import vtk
 import argparse
+import numpy as np
 import matplotlib.pyplot as plt
+from vtk.util.numpy_support import vtk_to_numpy
 from MBFTools.PrePostComparison import PrePostMBFMap
 
 class CompareMorphology(PrePostMBFMap):
@@ -66,10 +68,16 @@ class CompareMorphology(PrePostMBFMap):
         return Surface
 
     def ExtractWallThicknessInTerritory(self, Surface):
-        TerritoryMaps = Surface.GetPointData().GetArray("TerritoryMaps")
-        min_territory, max_territory = TerritoryMaps.GetRange()
-        for i in range(min_territory, max_territory):
-            pass
+        MBF_Labels = super().ReadMBFLabels()
+        WallThickness_data = dict()
+        for key in MBF_Labels.keys():
+            WallThickness_data[key] = np.array([])
+            for i in MBF_Labels[key]:
+                territory_ = self.ThresholdInBetweenPoints(Surface, "TerritoryMaps", i, i+1)
+                wall_thickness = vtk_to_numpy(territory_.GetPointData().GetArray("TerritoryMaps"))
+                WallThickness_data[key] = np.append(wall_thickness, WallThickness_data[key])
+
+        return WallThickness_data
 
     def PlotResults(self):
         pass
@@ -77,9 +85,9 @@ class CompareMorphology(PrePostMBFMap):
     def main(self):
         pass
 
-    def ThresholdInBetween(self,Volume,arrayname,value1,value2):
-        Threshold=vtk.vtkThreshold()
-        Threshold.SetInputData(Volume)
+    def ThresholdInBetweenPoints(self, Surface, arrayname, value1, value2):
+        Threshold=vtk.vtkThresholdPoints()
+        Threshold.SetInputData(Surface)
         Threshold.ThresholdBetween(value1,value2)
         Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
         Threshold.Update()
