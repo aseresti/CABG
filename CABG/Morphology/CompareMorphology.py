@@ -42,7 +42,29 @@ class CompareMorphology():
         return distancefilter.GetOutput()
     
     def ProjectTerritories(self, Surface, Volume):
-        pass
+        TerritoyProfile_Array = vtk.vtkFloatArray()
+        TerritoyProfile_Array.SetName("TerritoryMaps")
+        TerritoyProfile_Array.SetNumberOfComponents(1)
+        TerritoyProfile_Array.SetNumberOfTuples(Surface.GetNumberOfPoints())
+
+        TerritoryMap = Volume.GetPointData().GetArray("TerritoryMaps")
+
+        Locator = vtk.vtkPointLocator()
+        Locator.SetDataSet(Volume)
+        Locator.BuildLocator()
+
+        for i in range(Surface.GetNumberOfPoints()):
+            point = Surface.GetPoint(i)
+            closest_point_id = Locator.FindClosestPoint(point)
+
+            TerritoyProfile_Array.SetValue(i, TerritoryMap.GetValue(closest_point_id))
+
+        Surface.GetPointData().AddArray(TerritoyProfile_Array)
+
+        return Surface
+
+    def ExtractWallThicknessInTerritory(self, Surface):
+        
 
     def PlotResults(self):
         pass
