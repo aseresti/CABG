@@ -14,9 +14,9 @@ class PrePostMBFMap():
         MBF_data = {"LAD": np.array([]), "LCx": np.array([]), "Intermedius": np.array([]), "Diag1": np.array([]), "Diag2": np.array([]), "PDA": np.array([]), "PL": np.array([])}
         for key in MBF_Labels.keys():
             for i in MBF_Labels[key]:
-                territory_b = ThresholdInBetween(MBFMap, "TerritoryMaps", i, i+1)
-                indexMBF_ = vtk_to_numpy(territory_b.GetPointData().GetArray(0))
-                MBF_data[key] = np.append(indexMBF_, MBF_data[key])
+                territory_ = ThresholdInBetween(MBFMap, "TerritoryMaps", i, i+1)
+                MBF_ = vtk_to_numpy(territory_.GetPointData().GetArray(0))
+                MBF_data[key] = np.append(MBF_, MBF_data[key])
         
         return MBF_data
 
@@ -51,9 +51,7 @@ class PrePostMBFMap():
         plt.tight_layout()
         plt.show()
 
-
-
-    def main(self):
+    def ReadMBFLabels(self):
         MBF_Labels = {"LAD": [], "LCx":[], "Intermedius":[], "Diag1":[], "Diag2":[], "PDA":[], "PL":[]}
 
         with open(self.InputLabels, "r") as ifile:
@@ -62,6 +60,10 @@ class PrePostMBFMap():
                 for key in MBF_Labels.keys():
                     if line[1].find(key)>=0: MBF_Labels[key].append(int(line[0]))
 
+        return MBF_Labels
+
+    def main(self):
+        MBF_Labels = self.ReadMBFLabels()
         MBF_data_pre = self.ReadTerritoryMBF(self.MBF_A, MBF_Labels)
         MBF_data_post = self.ReadTerritoryMBF(self.MBF_B, MBF_Labels)
 
