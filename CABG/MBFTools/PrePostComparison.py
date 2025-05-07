@@ -1,27 +1,33 @@
+import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
 from utilities import ReadVTUFile, ThresholdInBetween
+from NormalizeMBFMap import MBFNormalization
 
-class PrePostMBFMap():
+class PrePostMBFMap(MBFNormalization):
     def __init__(self, args):
+        args.InputMBFMap = f"{args.InputFolder}/{args.InputMBF}"
+        args.ArrayName = 0
+        self.args = args
+        super().__init__(args)
         self.MBF_A = ReadVTUFile(f"{args.InputFolder}/{args.InputMBF}")
         self.MBF_B = ReadVTUFile(f"{args.InputFolder[:-1]}B/{args.InputMBF}")
         self.InputLabels = f"{args.InputFolder[:-1]}B/{args.InputLabels}"
 
-    def ReadTerritoryMBF(self, MBFMap, MBF_Labels):
+    def ReadTerritoryMBF(self, MBFMap, MBF_Labels, ArrayName = 0):
         MBF_data = {"LAD": np.array([]), "LCx": np.array([]), "Intermedius": np.array([]), "Diag1": np.array([]), "Diag2": np.array([]), "PDA": np.array([]), "PL": np.array([])}
         for key in MBF_Labels.keys():
             for i in MBF_Labels[key]:
                 territory_ = ThresholdInBetween(MBFMap, "TerritoryMaps", i, i+1)
-                MBF_ = vtk_to_numpy(territory_.GetPointData().GetArray(0))
+                MBF_ = vtk_to_numpy(territory_.GetPointData().GetArray(ArrayName))
                 MBF_data[key] = np.append(MBF_, MBF_data[key])
         
         return MBF_data
 
 
-    def PlotBox(self, MBF_Labels, MBF_data_pre, MBF_data_post):
+    def PlotBox(self, MBF_Labels, MBF_data_pre, MBF_data_post, ylabel = "MBF (ml/min/100g)"):
         color_list = ['aquamarine', 'sandybrown', 'palegreen', 'lightcyan', 'thistle', 'lavender', 'salmon', 'peachpuff']
         
         Labels = []
@@ -37,7 +43,7 @@ class PrePostMBFMap():
                 colors.append(color_list[i])
             
         _, ax = plt.subplots()
-        ax.set_ylabel("MBF (ml/min/100g)", fontdict={'color':'blue','size':20})
+        ax.set_ylabel(ylabel, fontdict={'size':20})
         bplot = ax.boxplot(IndexMBF, patch_artist=True, labels=Labels, showfliers= False)
 
         for patch, color in zip(bplot['boxes'], colors):
@@ -68,6 +74,20 @@ class PrePostMBFMap():
         MBF_data_post = self.ReadTerritoryMBF(self.MBF_B, MBF_Labels)
 
         self.PlotBox(MBF_Labels, MBF_data_pre, MBF_data_post)
+
+        super().Normalize()
+        self.args.InputMBFMap = f"{self.args.InputFolder[:-1]}B/{self.args.InputMBF}"
+        super().__init__(self.args)
+        super().Normalize()
+
+        IndexMBF_A = ReadVTUFile(f"{args.InputFolder}/{os.path.splitext(args.InputMBF)[0]}_Normalized.vtu")
+        IndexMBF_B = ReadVTUFile(f"{args.InputFolder[:-1]}B/{os.path.splitext(args.InputMBF)[0]}_Normalized.vtu")
+
+        MBF_data_pre = self.ReadTerritoryMBF(IndexMBF_A, MBF_Labels, "IndexMBF")
+        MBF_data_post = self.ReadTerritoryMBF(IndexMBF_B, MBF_Labels, "IndexMBF")
+
+        self.PlotBox(MBF_Labels, MBF_data_pre, MBF_data_post, "IndexMBF")
+
 
 
 if __name__ == "__main__":
