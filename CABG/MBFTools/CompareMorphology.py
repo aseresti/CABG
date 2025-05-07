@@ -139,7 +139,7 @@ class CompareMorphology(PrePostMBFMap):
             print(key, np.mean(WallThickness_Data_A[key]), np.mean(WallThickness_Data_B[key]))
             data["parameter"].extend([key, key])
             data["Time"].extend(["WallThickness-Pre (0.1mm)", "WallThickness-Post (0.1mm)"])
-            data["Value"].extend([np.mean(WallThickness_Data_A[key])*100, np.mean(WallThickness_Data_B[key])*100])
+            data["Value"].extend([np.mean(WallThickness_Data_A[key]), np.mean(WallThickness_Data_B[key])])
 
         #Epicardium_WT_Territory_A.GetPointData().GetArray("Distance")
         self.PlotResults(data)
