@@ -1,4 +1,5 @@
 import os
+import vtk
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -88,6 +89,19 @@ class PrePostMBFMap(MBFNormalization):
 
         self.PlotBox(MBF_Labels, MBF_data_pre, MBF_data_post, "IndexMBF")
 
+    def ComputeVolume(self, Volume):
+        Mass = vtk.vtkMassProperties()
+        Mass.AddInputData(Volume)
+        Mass.Update()
+
+        return Mass.GetVolume()
+
+    def AnalyzeTerritoryVolume(self, MBF_data):
+        Volume_data = {}
+        for (key, item) in MBF_data.items():
+            Volume_data[key] = self.ComputeVolume(item)
+
+        return Volume_data
 
 
 if __name__ == "__main__":
