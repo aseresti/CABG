@@ -116,7 +116,8 @@ class PrePostMBFMap(MBFNormalization):
     def ComputeTerritoryVolume(self, Territory):
         Volume_data = {}
         for (key, item) in Territory.items():
-            Volume_data[key] = self.ComputeVolume(ExtractSurface(item))
+            if item.GetNumberOfPoints() > 0:
+                Volume_data[key] = self.ComputeVolume(ExtractSurface(item))
 
         return Volume_data
 
@@ -132,10 +133,9 @@ class PrePostMBFMap(MBFNormalization):
         data["Value"].extend([Volume_MBF_A, Volume_MBF_B])
 
         for key in Volume_data_A.keys():
-            if Territories_A[key].GetNumberOfPoints() > 0:
-                data["Territory"].extend([key, key])
-                data["Time"].extend(["PreCABG", "PostCABG"])
-                data["Value"].extend([Volume_data_A[key], Volume_data_B[key]])
+            data["Territory"].extend([key, key])
+            data["Time"].extend(["PreCABG", "PostCABG"])
+            data["Value"].extend([Volume_data_A[key], Volume_data_B[key]])
 
         return data
 
