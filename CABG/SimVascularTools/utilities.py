@@ -286,12 +286,14 @@ def ThresholdPointsByUpper(PolyData,arrayname,value):
 	return Threshold.GetOutput()
 
 def ThresholdInBetween(Volume,arrayname,value1,value2):
-        Threshold=vtk.vtkThreshold()
-        Threshold.SetInputData(Volume)
-        Threshold.ThresholdBetween(value1,value2)
-        Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
-        Threshold.Update()
-        return Threshold.GetOutput()
+	Threshold=vtk.vtkThreshold()
+	Threshold.SetInputData(Volume)
+	Threshold.SetLowerThreshold(value1)
+	Threshold.SetUpperThreshold(value2)
+	Threshold.SetThresholdFunction(vtk.vtkThreshold.THRESHOLD_BETWEEN)
+	Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
+	Threshold.Update()
+	return Threshold.GetOutput()
 
 def ConvertPointsToLine(PointsArray):
         # Create a vtkPoints object and store the points in it
