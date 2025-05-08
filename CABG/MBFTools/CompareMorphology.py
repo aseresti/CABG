@@ -79,7 +79,7 @@ class CompareMorphology(PrePostMBFMap):
             if len(MBF_Labels[key]) > 0: 
                 WallThickness_data[key] = np.array([])
                 for i in MBF_Labels[key]:
-                    territory_ = self.ThresholdInBetweenPoints(Surface, "TerritoryMaps", i, i+1)
+                    territory_ = self.ThresholdInBetweenPoints(Surface, "TerritoryMaps", i, i)
                     wall_thickness = vtk_to_numpy(territory_.GetPointData().GetArray("Distance"))
                     WallThickness_data[key] = np.append(wall_thickness, WallThickness_data[key])
 
@@ -115,13 +115,13 @@ class CompareMorphology(PrePostMBFMap):
         print("EndoCardium Surface- PreCABG: ", Surface_A_Endo)
         print("EndoCardium Surface- PostCABG: ", Surface_B_Endo)
         data["parameter"].extend(["Endocardium", "Endocardium"])
-        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post (cm^2)"])
+        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post ($cm^2$)"])
         data["Value"].extend([Surface_A_Endo, Surface_B_Endo])
 
         print("EndoCardium Surface- PreCABG: ", Surface_A_Epi)
         print("EndoCardium Surface- PostCABG: ", Surface_B_Epi)
         data["parameter"].extend(["Epicardium", "Epicardium"])
-        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post (cm^2)"])
+        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post ($cm^2$)"])
         data["Value"].extend([Surface_A_Epi, Surface_B_Epi])
 
         Epicardium_WT_A = self.ComputeWallThickness(self.Endocardium_A, self.Epicardium_A)
@@ -148,7 +148,8 @@ class CompareMorphology(PrePostMBFMap):
     def ThresholdInBetweenPoints(self, Surface, arrayname, value1, value2):
         Threshold=vtk.vtkThresholdPoints()
         Threshold.SetInputData(Surface)
-        Threshold.ThresholdBetween(value1,value2)
+        Threshold.SetLowerThreshold(value1)
+        Threshold.SetUpperThreshold(value2)
         Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
         Threshold.Update()
         return Threshold.GetOutput()
