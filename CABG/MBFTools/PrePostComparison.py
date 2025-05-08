@@ -2,9 +2,11 @@ import os
 import vtk
 import argparse
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
-from utilities import ReadVTUFile, ThresholdInBetween
+from utilities import ReadVTUFile, ThresholdInBetween, ExtractSurface
 from NormalizeMBFMap import MBFNormalization
 
 class PrePostMBFMap(MBFNormalization):
@@ -18,14 +20,20 @@ class PrePostMBFMap(MBFNormalization):
         self.InputLabels = f"{args.InputFolder[:-1]}B/{args.InputLabels}"
 
     def ReadTerritoryMBF(self, MBFMap, MBF_Labels, ArrayName = 0):
-        MBF_data = {"LAD": np.array([]), "LCx": np.array([]), "Intermedius": np.array([]), "Diag1": np.array([]), "Diag2": np.array([]), "PDA": np.array([]), "PL": np.array([])}
+        MBF_data = {}
+        Territories = {}
         for key in MBF_Labels.keys():
+            MBF_data[key] = np.array([])
+            AppendTerritory = vtk.vtkAppendFilter()
             for i in MBF_Labels[key]:
-                territory_ = ThresholdInBetween(MBFMap, "TerritoryMaps", i, i+1)
+                territory_ = ThresholdInBetween(MBFMap, "TerritoryMaps", i, i)
+                AppendTerritory.AddInputData(territory_)
+                AppendTerritory.Update()
                 MBF_ = vtk_to_numpy(territory_.GetPointData().GetArray(ArrayName))
                 MBF_data[key] = np.append(MBF_, MBF_data[key])
+            Territories[key] = AppendTerritory.GetOutput()
         
-        return MBF_data
+        return MBF_data, Territories
 
 
     def PlotBox(self, MBF_Labels, MBF_data_pre, MBF_data_post, ylabel = "MBF (ml/min/100g)"):
@@ -71,10 +79,10 @@ class PrePostMBFMap(MBFNormalization):
 
     def main(self):
         MBF_Labels = self.ReadMBFLabels()
-        MBF_data_pre = self.ReadTerritoryMBF(self.MBF_A, MBF_Labels)
-        MBF_data_post = self.ReadTerritoryMBF(self.MBF_B, MBF_Labels)
+        MBF_data_A, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBF_Labels)
+        MBF_data_B, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBF_Labels)
 
-        self.PlotBox(MBF_Labels, MBF_data_pre, MBF_data_post)
+        self.PlotBox(MBF_Labels, MBF_data_A, MBF_data_B)
 
         super().Normalize()
         self.args.InputMBFMap = f"{self.args.InputFolder[:-1]}B/{self.args.InputMBF}"
@@ -83,25 +91,63 @@ class PrePostMBFMap(MBFNormalization):
 
         IndexMBF_A = ReadVTUFile(f"{args.InputFolder}/{os.path.splitext(args.InputMBF)[0]}_Normalized.vtu")
         IndexMBF_B = ReadVTUFile(f"{args.InputFolder[:-1]}B/{os.path.splitext(args.InputMBF)[0]}_Normalized.vtu")
+        MBF_data_A, _ = self.ReadTerritoryMBF(IndexMBF_A, MBF_Labels, "IndexMBF")
+        MBF_data_B, _ = self.ReadTerritoryMBF(IndexMBF_B, MBF_Labels, "IndexMBF")
 
-        MBF_data_pre = self.ReadTerritoryMBF(IndexMBF_A, MBF_Labels, "IndexMBF")
-        MBF_data_post = self.ReadTerritoryMBF(IndexMBF_B, MBF_Labels, "IndexMBF")
+        self.PlotBox(MBF_Labels, MBF_data_A, MBF_data_B, "IndexMBF")
 
-        self.PlotBox(MBF_Labels, MBF_data_pre, MBF_data_post, "IndexMBF")
+        self.BarPlot(self.ProcessVolumeData(Territories_A, Territories_B))
 
-    def ComputeVolume(self, Volume):
+    def ComputeVolume(self, ClosedSurface):
+        tri_filter = vtk.vtkTriangleFilter()
+        tri_filter.SetInputData(ClosedSurface)
+        tri_filter.Update()
+
+        cleaner = vtk.vtkCleanPolyData()
+        cleaner.SetInputData(tri_filter.GetOutput())
+        cleaner.Update()
+
         Mass = vtk.vtkMassProperties()
-        Mass.AddInputData(Volume)
+        Mass.SetInputData(cleaner.GetOutput())
         Mass.Update()
 
         return Mass.GetVolume()
 
-    def AnalyzeTerritoryVolume(self, MBF_data):
+    def ComputeTerritoryVolume(self, Territory):
         Volume_data = {}
-        for (key, item) in MBF_data.items():
-            Volume_data[key] = self.ComputeVolume(item)
+        for (key, item) in Territory.items():
+            Volume_data[key] = self.ComputeVolume(ExtractSurface(item))
 
         return Volume_data
+
+    def ProcessVolumeData(self, Territories_A, Territories_B):
+        Volume_MBF_A = self.ComputeVolume(ExtractSurface(self.MBF_A))
+        Volume_MBF_B = self.ComputeVolume(ExtractSurface(self.MBF_B))
+        Volume_data_A = self.ComputeTerritoryVolume(Territories_A)
+        Volume_data_B = self.ComputeTerritoryVolume(Territories_B)
+
+        data = {"Territory": [], "Time": [], "Value": []}
+        data["Territory"].extend(["Myocardium", "Myocardium"])
+        data["Time"].extend(["PreCABG", "PostCABG"])
+        data["Value"].extend([Volume_MBF_A, Volume_MBF_B])
+
+        for key in Volume_data_A.keys():
+            if Territories_A[key].GetNumberOfPoints() > 0:
+                data["Territory"].extend([key, key])
+                data["Time"].extend(["PreCABG", "PostCABG"])
+                data["Value"].extend([Volume_data_A[key], Volume_data_B[key]])
+
+        return data
+
+    def BarPlot(self, data):
+        df = pd.DataFrame(data)
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=df, x="Territory", y="Value", hue="Time", palette="pastel")
+
+        plt.ylabel("Volume (mL)")
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        plt.show()
 
 
 if __name__ == "__main__":
