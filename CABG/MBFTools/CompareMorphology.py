@@ -28,27 +28,42 @@ class CompareMorphology(PrePostMBFMap):
         self.output_surface_B = os.path.join(f"{InputFolderB}/Morphology", os.path.splitext(args.Epicardium)[0] + "_WallThickness.vtp")
 
     def ComputeVolume(self, ClosedSurface):
+        surface = self.TriangulateSurface(ClosedSurface)
         MassProp = vtk.vtkMassProperties()
-        MassProp.SetInputData(ClosedSurface)
+        MassProp.SetInputData(surface)
         MassProp.Update()
         
         return MassProp.GetVolume()
     
     def ComputeSurfaceArea(self, Surface):
+        surface = self.TriangulateSurface(Surface)
         MassProp = vtk.vtkMassProperties()
-        MassProp.SetInputData(Surface)
+        MassProp.SetInputData(surface)
         MassProp.Update()
 
         return MassProp.GetSurfaceArea()
 
     def ComputeWallThickness(self, Endocardium, Epicardium):
+        epicardium = self.TriangulateSurface(Epicardium)
+        endocardium = self.TriangulateSurface(Endocardium)
         distancefilter = vtk.vtkDistancePolyDataFilter()
-        distancefilter.SetInputData(1, Endocardium)
-        distancefilter.SetInputData(0, Epicardium)
+        distancefilter.SetInputData(1, endocardium)
+        distancefilter.SetInputData(0, epicardium)
         distancefilter.SignedDistanceOff()
         distancefilter.Update()
 
         return distancefilter.GetOutput()
+    
+    def TriangulateSurface(self, Surface):
+        tri_filter = vtk.vtkTriangleFilter()
+        tri_filter.SetInputData(Surface)
+        tri_filter.Update()
+
+        cleaner = vtk.vtkCleanPolyData()
+        cleaner.SetInputData(tri_filter.GetOutput())
+        cleaner.Update()
+
+        return cleaner.GetOutput()
     
     def ProjectTerritories(self, Surface, Volume):
         TerritoyProfile_Array = vtk.vtkFloatArray()
@@ -115,13 +130,13 @@ class CompareMorphology(PrePostMBFMap):
         print("EndoCardium Surface- PreCABG: ", Surface_A_Endo)
         print("EndoCardium Surface- PostCABG: ", Surface_B_Endo)
         data["parameter"].extend(["Endocardium", "Endocardium"])
-        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post ($cm^2$)"])
+        data["Time"].extend(["SurfaceArea-Pre ($cm^2$)", "SurfaceArea-Post ($cm^2$)"])
         data["Value"].extend([Surface_A_Endo, Surface_B_Endo])
 
         print("EndoCardium Surface- PreCABG: ", Surface_A_Epi)
         print("EndoCardium Surface- PostCABG: ", Surface_B_Epi)
         data["parameter"].extend(["Epicardium", "Epicardium"])
-        data["Time"].extend(["SurfaceArea-Pre (cm^2)", "SurfaceArea-Post ($cm^2$)"])
+        data["Time"].extend(["SurfaceArea-Pre ($cm^2$)", "SurfaceArea-Post ($cm^2$)"])
         data["Value"].extend([Surface_A_Epi, Surface_B_Epi])
 
         Epicardium_WT_A = self.ComputeWallThickness(self.Endocardium_A, self.Epicardium_A)
@@ -139,7 +154,7 @@ class CompareMorphology(PrePostMBFMap):
             print(key, np.mean(WallThickness_Data_A[key]), np.mean(WallThickness_Data_B[key]))
             data["parameter"].extend([key, key])
             data["Time"].extend(["WallThickness-Pre (0.1mm)", "WallThickness-Post (0.1mm)"])
-            data["Value"].extend([np.mean(WallThickness_Data_A[key]), np.mean(WallThickness_Data_B[key])])
+            data["Value"].extend([np.mean(WallThickness_Data_A[key])*100, np.mean(WallThickness_Data_B[key])*100])
 
         #Epicardium_WT_Territory_A.GetPointData().GetArray("Distance")
         self.PlotResults(data)
