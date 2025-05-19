@@ -1,13 +1,19 @@
 import os
-import vtk
-import numpy as np
 import argparse
 from utilities import ReadVTUFile, ThresholdInBetween
 
 class ExtractSubtendedFlow():
     def __init__(self, args):
-        self.MBF = ReadVTUFile(args.InputMBF)
         self.args = args
+        labels = f"{os.path.splitext(self.args.InputMBF)[0]}_Labels.dat"
+        self.Labels = {}
+        with open(labels, "r") as ifile:
+            for LINE in ifile:
+                line = LINE.split()
+                self.Labels[line[1]] = line[0]
+
+    def ReadMBFFiles(self):
+        self.MBF = ReadVTUFile(args.InputMBF)
         labels = f"{os.path.splitext(self.args.InputMBF)[0]}_Labels.dat"
         self.Labels = {}
         with open(labels, "r") as ifile:
@@ -40,11 +46,12 @@ class ExtractSubtendedFlow():
         
         return Flow
     
-    def ExtractSubtendedTerritory(self):
+    def ExtractSubtendedTerritory(self, TerritoryTag):
+        self.ReadMBFFiles()
         SubtendedFlow = 0
         self.TerritoryTags = ""
         for (key, item) in self.Labels.items():
-            if self.args.TerritoryTag in key:
+            if TerritoryTag in key:
                 self.TerritoryTags += os.path.splitext(key)[0] + "+"
                 territory_ = ThresholdInBetween(self.MBF, "TerritoryMaps", int(item), int(item))
                 SubtendedFlow += self.CalculateFlowInVoluem(territory_)
@@ -52,7 +59,7 @@ class ExtractSubtendedFlow():
         return SubtendedFlow
     
     def main(self):
-        SubtendedFlow = self.ExtractSubtendedTerritory()
+        SubtendedFlow = self.ExtractSubtendedTerritory(self.args.TerritoryTag)
         print("Flow = ", int(SubtendedFlow*100)/100, "mL/min")
         ofile_path = f"./{os.path.splitext(os.path.basename(self.args.InputMBF))[0]}_MBFxVolume_{self.args.TerritoryTag}.dat"
         with open(ofile_path, "w") as ofile:
