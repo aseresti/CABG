@@ -55,11 +55,12 @@ class ImageAnalysisMyocardiumCoronaryTerritories():
 			exit(1)
 
 
-		#Find the array name with work "scalars"
-		if self.Args.ArrayName is None:
+		#Find the array name with word "scalars"
+		"""if self.Args.ArrayName is None:
 			for i in range(VentricleMesh.GetPointData().GetNumberOfArrays()):
 				ArrayName_=str(VentricleMesh.GetPointData().GetArrayName(i))
-				if ArrayName_.find("calars")>0: self.Args.ArrayName=ArrayName_
+				if ArrayName_.find("calars")>0: self.Args.ArrayName=ArrayName_"""
+		#self.Args.ArrayName = VentricleMesh.GetPointData().GetArrayName(0)
 		print ("--- The array that contains MBF values is: %s"%self.Args.ArrayName)
 
 		#Get the Nodes and Scalars of the LV Mesh
@@ -197,7 +198,7 @@ if __name__=="__main__":
 	parser.add_argument('-VesselSurfaces', '--VesselSurfaces', type=str, required=True, dest="VesselSurfaces",help="Folder that contains the centerline files labels into L_*.vtp and R_*.vtp tags.")
 	
         #Array Name of the Data
-	parser.add_argument('-ArrayName', '--ArrayName', type=str, required=False, default="scalars", dest="ArrayName",help="The name of the array containing the MBF values.")
+	parser.add_argument('-ArrayName', '--ArrayName', type=str, required=False, default= "scalars", dest="ArrayName",help="The name of the array containing the MBF values.")
 
         #Output argumenets
 	parser.add_argument('-OutputFileName', '--OutputFileName', type=str, required=False, dest="OutputFileName",help="The output filename of the volumetric data with territories")
