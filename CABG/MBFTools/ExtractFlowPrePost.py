@@ -5,12 +5,11 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from vtk.util.numpy_support import vtk_to_numpy
+from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 from utilities import ReadVTUFile, ThresholdInBetween
 from ExtractFlowInTerritories import ExtractSubtendedFlow
-from NormalizeMBFMap import MBFNormalization
 
-class ExtractFlowPrePost(ExtractSubtendedFlow, MBFNormalization):
+class ExtractFlowPrePost(ExtractSubtendedFlow):
     def __init__(self, args):
         super().__init__(args)
         self.args = args
@@ -57,7 +56,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow, MBFNormalization):
         plt.figure(figsize=(8, 5))
         sns.barplot(data=df, x="Territory", y="Value", hue="Time", palette="pastel")
 
-        plt.ylabel("Volume (mL)")
+        plt.ylabel("Flow (mL/min)")
         plt.xticks(rotation=45, ha="right")
         plt.tight_layout()
         plt.show()
@@ -76,8 +75,39 @@ class ExtractFlowPrePost(ExtractSubtendedFlow, MBFNormalization):
 
         return MBFStatistics
     
+    def Normalize(self, MBF, ArrayName):
+        ScalarArray = MBF.GetPointData().GetArray(ArrayName)
+        per_75th = np.percentile(vtk_to_numpy(ScalarArray), 75)
+        IndexMBFArray = ScalarArray/per_75th
+        IndexMBF = numpy_to_vtk(IndexMBFArray)
+        IndexMBF.SetName("IndexMBF")
+        MBF.GetPointData().AddArray(IndexMBF)
+
+        return per_75th, MBF
+    
     def main(self):
-        pass
+        self.ReadPrePostFiles()
+        MBFLabels = self.ReadMBFLabels()
+        MBFData_A, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels)
+        MBFData_B, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels)
+        Flow_A = self.CollectFlowData(Territories_A)
+        Flow_B = self.CollectFlowData(Territories_B)
+
+        Bardata = {"Territory": [], "Time": [], "Value": []}
+        for key in Flow_A.keys():
+            Bardata["Territory"].extend([key, key])
+            Bardata["Time"].extend(["PreCABG", "PostCABG"])
+            Bardata["Value"].extend([Flow_A[key], Flow_B[key]])
+        
+        MBFStat_A = self.Statistics(MBFData_A)
+        MBFStat_B = self.Statistics(MBFData_B)
+        perc75_A, IndexMBF_A = self.Normalize(MBFData_A, 0)
+        perc75_B, IndexMBF_B = self.Normalize(MBFData_B, 0)
+        IndexMBFData_A, _ = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels)
+        IndexMBFData_B, _ = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels)
+        IndexMBFStat_A = self.Statistics(IndexMBFData_A)
+        IndexMBFStat_B = self.Statistics(IndexMBFData_B)
+        #todo: Add Output .dat file
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
