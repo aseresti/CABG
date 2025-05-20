@@ -6,6 +6,7 @@ from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 
 class MBFNormalization():
     def __init__(self, args):
+        super().__init__()
         self.args = args
 
     def Normalize(self, MBF):
