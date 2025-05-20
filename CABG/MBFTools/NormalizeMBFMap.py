@@ -7,16 +7,24 @@ from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 class MBFNormalization():
     def __init__(self, args):
         self.args = args
-        self.MBF = ReadVTUFile(self.args.InputMBFMap)
 
-    def Normalize(self):
-        ImageScalars = self.MBF.GetPointData().GetArray(self.args.ArrayName)
+    def Normalize(self, MBF):
+        ImageScalars = MBF.GetPointData().GetArray(self.args.ArrayName)
         per_75th = np.percentile(vtk_to_numpy(ImageScalars), 75)
-        IndexMBF = numpy_to_vtk(ImageScalars/per_75th)
+        IndexMBFArray = ImageScalars/per_75th
+        IndexMBF = numpy_to_vtk(IndexMBFArray)
         IndexMBF.SetName("IndexMBF")
-        self.MBF.GetPointData().AddArray(IndexMBF)
+        MBF.GetPointData().AddArray(IndexMBF)
+
+        return per_75th, MBF
+
+
+    def main(self):
+        MBF = ReadVTUFile(self.args.InputMBFMap)
+        _, IndexMBF = self.Normalize(MBF)
         OPath = f"{os.path.splitext(self.args.InputMBFMap)[0]}_Normalized.vtu"
-        WriteVTUFile(OPath, self.MBF)
+        WriteVTUFile(OPath, IndexMBF)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,4 +32,4 @@ if __name__ == "__main__":
     parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = int, required = False, default= 0)
     args = parser.parse_args()
     
-    MBFNormalization(args).Normalize()
+    MBFNormalization(args).main()
