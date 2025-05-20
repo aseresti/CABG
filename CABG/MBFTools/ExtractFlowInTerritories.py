@@ -17,7 +17,7 @@ class ExtractSubtendedFlow():
                 self.Labels[line[1]] = line[0]
 
 
-    def CalculateVoxelFlow(self, Array, voxel):
+    def CalculateVoxelFlow(self, Array, voxel, Unit):
         id_list = voxel.GetPointIds()
         cell_bounds = voxel.GetBounds()
         cell_volume = abs(cell_bounds[0] - cell_bounds[1]) * abs(cell_bounds[2] - cell_bounds[3]) * abs(cell_bounds[4] - cell_bounds[5])
@@ -27,18 +27,18 @@ class ExtractSubtendedFlow():
             average_cell_mbf += Array.GetValue(id_list.GetId(i))
         
         rho = 1.05
-        if self.args.Unit == 'mm':
+        if Unit == 'mm':
             return rho*average_cell_mbf/id_list.GetNumberOfIds()*cell_volume/1000/100
-        elif self.args.Unit == 'cm':
+        elif Unit == 'cm':
             return rho*average_cell_mbf/id_list.GetNumberOfIds()*cell_volume/100
 
-    def CalculateFlowInVoluem(self, Volume):
-        MBFScalarArray = Volume.GetPointData().GetArray(self.args.ArrayName)
+    def CalculateFlowInVoluem(self, Volume, Unit, ArrayName):
+        MBFScalarArray = Volume.GetPointData().GetArray(ArrayName)
         NCells = Volume.GetNumberOfCells()
         Flow = 0
         for i in range(NCells):
             voxel = Volume.GetCell(i)
-            Flow += self.CalculateVoxelFlow(MBFScalarArray, voxel)
+            Flow += self.CalculateVoxelFlow(MBFScalarArray, voxel, Unit)
         
         return Flow
     
@@ -50,7 +50,7 @@ class ExtractSubtendedFlow():
             if TerritoryTag in key:
                 self.TerritoryTags += os.path.splitext(key)[0] + "+"
                 territory_ = ThresholdInBetween(self.MBF, "TerritoryMaps", int(item), int(item))
-                SubtendedFlow += self.CalculateFlowInVoluem(territory_)
+                SubtendedFlow += self.CalculateFlowInVoluem(territory_, self.args.Unit)
         
         return SubtendedFlow
     
