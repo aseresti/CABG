@@ -84,13 +84,8 @@ class PrePostMBFMap(MBFNormalization):
 
         self.PlotBox(MBF_Labels, MBF_data_A, MBF_data_B)
 
-        super().Normalize()
-        self.args.InputMBFMap = f"{self.args.InputFolder[:-1]}B/{self.args.InputMBF}"
-        super().__init__(self.args)
-        super().Normalize()
-
-        IndexMBF_A = ReadVTUFile(f"{args.InputFolder}/{os.path.splitext(args.InputMBF)[0]}_Normalized.vtu")
-        IndexMBF_B = ReadVTUFile(f"{args.InputFolder[:-1]}B/{os.path.splitext(args.InputMBF)[0]}_Normalized.vtu")
+        _, IndexMBF_A = super().Normalize(self.MBF_A)
+        _, IndexMBF_B = super().Normalize(self.MBF_B)
         MBF_data_A, _ = self.ReadTerritoryMBF(IndexMBF_A, MBF_Labels, "IndexMBF")
         MBF_data_B, _ = self.ReadTerritoryMBF(IndexMBF_B, MBF_Labels, "IndexMBF")
 
