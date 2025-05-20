@@ -4,6 +4,7 @@ from utilities import ReadVTUFile, ThresholdInBetween
 
 class ExtractSubtendedFlow():
     def __init__(self, args):
+        super().__init__()
         self.args = args
 
     def ReadMBFFiles(self):
