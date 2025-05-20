@@ -25,10 +25,11 @@ class ExtractSubtendedFlow():
         for i in range(id_list.GetNumberOfIds()):
             average_cell_mbf += Array.GetValue(id_list.GetId(i))
         
+        rho = 1.05
         if self.args.Unit == 'mm':
-            return average_cell_mbf/id_list.GetNumberOfIds()*cell_volume/1000/100
+            return rho*average_cell_mbf/id_list.GetNumberOfIds()*cell_volume/1000/100
         elif self.args.Unit == 'cm':
-            return average_cell_mbf/id_list.GetNumberOfIds()*cell_volume/100
+            return rho*average_cell_mbf/id_list.GetNumberOfIds()*cell_volume/100
 
     def CalculateFlowInVoluem(self, Volume):
         MBFScalarArray = Volume.GetPointData().GetArray(self.args.ArrayName)
