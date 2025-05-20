@@ -272,7 +272,8 @@ def SurfaceNormals(Surface):
 def ThresholdByUpper(Volume,arrayname,value):
 	Threshold=vtk.vtkThreshold()
 	Threshold.SetInputData(Volume)
-	Threshold.ThresholdByUpper(value)
+	Threshold.SetThresholdFunction(vtk.vtkThreshold.THRESHOLD_UPPER)
+	Threshold.SetUpperThreshold(value)
 	Threshold.SetInputArrayToProcess(0,0,0,"vtkDataObject::FIELD_ASSOCIATION_POINTS",arrayname)
 	Threshold.Update()
 	return Threshold.GetOutput()
@@ -286,12 +287,15 @@ def ThresholdPointsByUpper(PolyData,arrayname,value):
 	return Threshold.GetOutput()
 
 def ThresholdInBetween(Volume,arrayname,value1,value2):
-        Threshold=vtk.vtkThreshold()
-        Threshold.SetInputData(Volume)
-        Threshold.ThresholdBetween(value1,value2)
-        Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
-        Threshold.Update()
-        return Threshold.GetOutput()
+		Threshold=vtk.vtkThreshold()
+		Threshold.SetInputData(Volume)
+		Threshold.SetThresholdFunction(vtk.vtkThreshold.THRESHOLD_BETWEEN)
+		Threshold.SetUpperThreshold(value2)
+		Threshold.SetLowerThreshold(value1)
+        #Threshold.ThresholdBetween(value1,value2)
+		Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS,arrayname)
+		Threshold.Update()
+		return Threshold.GetOutput()
 
 def ConvertPointsToLine(PointsArray):
         # Create a vtkPoints object and store the points in it
