@@ -2,6 +2,9 @@ import os
 import vtk
 import argparse
 import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
 from utilities import ReadVTUFile, ThresholdInBetween
 from ExtractFlowInTerritories import ExtractSubtendedFlow
@@ -13,9 +16,9 @@ class ExtractFlowPrePost(ExtractSubtendedFlow, MBFNormalization):
         self.args = args
 
     def ReadPrePostFiles(self):
-        self.MBF_A = ReadVTUFile(f"{self.args.InputFolder}/{self.args.InputMBF}")
-        self.MBF_B = ReadVTUFile(f"{self.args.InputFolder[:-1]}B/{self.args.InputMBF}")
-        self.InputLabels = f"{self.args.InputFolder[:-1]}B/{self.args.InputLabels}"
+        self.MBF_A = ReadVTUFile(os.path.join(self.args.InputFolder,self.args.InputMBF))
+        self.MBF_B = ReadVTUFile(os.path.join(f"{self.args.InputFolder[:-1]}B",self.args.InputMBF))
+        self.InputLabels = os.path.join(f"{self.args.InputFolder[:-1]}B",self.args.InputLabels)
 
     def ReadMBFLabels(self):
         MBF_Labels = {"post_LAD": [], "post_LCx": [], "post_RCA": [], "NonIschemic": []}
@@ -46,27 +49,41 @@ class ExtractFlowPrePost(ExtractSubtendedFlow, MBFNormalization):
         return MBF_data, Territories
 
     def CollectFlowData(self, Territories):
-        pass
-
-    def CollectPrePostData(self):
-        pass
+        SubtendedFlow = {key: super().CalculateFlowInVoluem(item) for (key, item) in Territories.items()}            
+        return SubtendedFlow
 
     def BarPlot(self, BarData):
-        pass
+        df = pd.DataFrame(BarData)
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=df, x="Territory", y="Value", hue="Time", palette="pastel")
+
+        plt.ylabel("Volume (mL)")
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        plt.show()
 
     def BoxPlot(self, BoxData):
         pass
 
     def Statistics(self, MBF_Data):
-        pass
+        statistics_dict = {"Mean":0, "Stdev": 0, "Median":0, "IQR":0}
+        MBFStatistics = {key: statistics_dict for key in MBF_Data.keys()}
+        for (key, item) in MBF_Data.items():
+            MBFStatistics[key]["Mean"] = np.mean(item)
+            MBFStatistics[key]["Stdev"] = np.std(item)
+            MBFStatistics[key]["Median"] = np.median(item)
+            MBFStatistics[key]["IQR"] = np.percentile(item, 75) - np.percentile(item, 25)
 
+        return MBFStatistics
+    
     def main(self):
         pass
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= True)
-    parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = str, required = False, default = "ImageScalars")
-    parser.add_argument("-TerritoryTag", "--TerritoryTag", type= str, required=True, dest = "TerritoryTag")
-    parser.add_argument("-Unit", "--Unit", type= str, dest= "Unit", default="mm", required=False)
+    parser.add_argument("-InputFolderPre", "--InputFolderPre", type=str, required= True, dest= "InputFolder")
+    parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= False, default= "MBF_Territories.vtu")
+    parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = int, required = False, default = 0)
+    parser.add_argument("-TerritoryTag", "--TerritoryTag", type= str, required=False, dest = "TerritoryTag")
+    parser.add_argument("-Unit", "--Unit", type= str, dest= "Unit", default="cm", required=False)
     args = parser.parse_args()
