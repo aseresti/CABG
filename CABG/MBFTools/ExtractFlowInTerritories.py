@@ -5,12 +5,6 @@ from utilities import ReadVTUFile, ThresholdInBetween
 class ExtractSubtendedFlow():
     def __init__(self, args):
         self.args = args
-        labels = f"{os.path.splitext(self.args.InputMBF)[0]}_Labels.dat"
-        self.Labels = {}
-        with open(labels, "r") as ifile:
-            for LINE in ifile:
-                line = LINE.split()
-                self.Labels[line[1]] = line[0]
 
     def ReadMBFFiles(self):
         self.MBF = ReadVTUFile(args.InputMBF)
