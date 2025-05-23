@@ -20,7 +20,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         self.InputLabels = os.path.join(f"{self.args.InputFolder[:-1]}B",self.args.InputLabels)
 
     def ReadMBFLabels(self):
-        Ischemic_Labels = {"post_LAD": [], "post_LCx":[], "post_PL":[], "NonIschemic": []}
+        Ischemic_Labels = {"post_LAD": [], "post_LCx":[], "post_RCA":[], "NonIschemic": []}
         keys = list(Ischemic_Labels.keys())[:-1]
         with open(self.InputLabels, "r") as ifile:
             for i, LINE in enumerate(ifile):
@@ -135,12 +135,22 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         MBFStat_B = self.TerritoryStatistics(MBFData_B)
         perc75_A, IndexMBF_A = self.Normalize(self.MBF_A, "ImageScalars")
         perc75_B, IndexMBF_B = self.Normalize(self.MBF_B, "scalars")
-        IndexMBFData_A, _ = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
-        IndexMBFData_B, _ = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
+        IndexMBFData_A, ITerritories_A = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
+        IndexMBFData_B, ITerritories_B = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
 
         IndexMBFStat_A = self.TerritoryStatistics(IndexMBFData_A)
         IndexMBFStat_B = self.TerritoryStatistics(IndexMBFData_B)
 
+        IndexFlow_A = self.CollectFlowData(ITerritories_A, self.args.Unit, "IndexMBF")
+        IndexFlow_B = self.CollectFlowData(ITerritories_B, self.args.Unit, "IndexMBF")
+
+        Bardata = {"Territory": [], "Time": [], "Value": []}
+        for key in IndexFlow_A.keys():
+            Bardata["Territory"].extend([key, key])
+            Bardata["Time"].extend(["PreCABG", "PostCABG"])
+            Bardata["Value"].extend([IndexFlow_A[key], IndexFlow_B[key]])
+
+        self.BarPlot(Bardata)
 
 
         stats_A = self.MyocardiumStatistics(self.MBF_A, "ImageScalars")
