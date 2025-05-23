@@ -20,20 +20,23 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         self.InputLabels = os.path.join(f"{self.args.InputFolder[:-1]}B",self.args.InputLabels)
 
     def ReadMBFLabels(self):
-        MBF_Labels = {"post_LAD": [], "post_LCx": [], "post_RCA": [], "NonIschemic": []}
-
+        Ischemic_Labels = {"post_LAD": [], "post_LCx":[], "post_PL":[], "NonIschemic": []}
+        keys = list(Ischemic_Labels.keys())[:-1]
         with open(self.InputLabels, "r") as ifile:
             for i, LINE in enumerate(ifile):
                 if i == 0: continue
                 line = LINE.split()
-                for key in list(MBF_Labels.keys())[:-1]:
-                    if line[1].find(key)>=0: MBF_Labels[key].append(int(line[0]))
-                    else: MBF_Labels["NonIschemic"].append(int(line[0]))
+                if line[1].find(keys[0])>=0: Ischemic_Labels[keys[0]].append(int(line[0]))
+                elif line[1].find(keys[1])>=0: Ischemic_Labels[keys[1]].append(int(line[0]))
+                elif line[1].find(keys[2])>=0: Ischemic_Labels[keys[2]].append(int(line[0]))
+                else: Ischemic_Labels["NonIschemic"].append(int(line[0]))
 
-        MBF_Labels = {k: v for k, v in MBF_Labels.items() if len(v) > 0}
-        return MBF_Labels
 
-    def ReadTerritoryMBF(self, MBFMap, MBF_Labels, ArrayName = 0):
+        Ischemic_Labels = {k:v for k, v in Ischemic_Labels.items() if len(v)>0}
+        
+        return Ischemic_Labels
+
+    def ReadTerritoryMBF(self, MBFMap, MBF_Labels, ArrayName):
         MBF_data = {}
         Territories = {}
         for key in MBF_Labels.keys():
@@ -91,7 +94,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
 
         return MBFStatistics
     
-    def MyocardiumStatistics(self, MBF, ArrayName = 0):
+    def MyocardiumStatistics(self, MBF, ArrayName):
         Array = vtk_to_numpy(MBF.GetPointData().GetArray(ArrayName))
         Myocardium_Statistics  = {
             "Mean": np.mean(Array),
@@ -132,28 +135,16 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         MBFStat_B = self.TerritoryStatistics(MBFData_B)
         perc75_A, IndexMBF_A = self.Normalize(self.MBF_A, "ImageScalars")
         perc75_B, IndexMBF_B = self.Normalize(self.MBF_B, "scalars")
-        IndexMBFData_A, IndexTerritories_A = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
-        IndexMBFData_B, IndexTerritories_B = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
-
-        """self.args.ArrayName = "IndexMBF"
-        IndexFlow_A = self.CollectFlowData(IndexTerritories_A, self.args.Unit)
-        IndexFlow_B = self.CollectFlowData(IndexTerritories_B, self.args.Unit)
-
-        Bardata = {"Territory": [], "Time": [], "Value": []}
-        for key in Flow_A.keys():
-            Bardata["Territory"].extend([key, key])
-            Bardata["Time"].extend(["PreCABG", "PostCABG"])
-            Bardata["Value"].extend([IndexFlow_A[key], IndexFlow_B[key]])
-
-        self.BarPlot(Bardata)"""
+        IndexMBFData_A, _ = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
+        IndexMBFData_B, _ = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
 
         IndexMBFStat_A = self.TerritoryStatistics(IndexMBFData_A)
         IndexMBFStat_B = self.TerritoryStatistics(IndexMBFData_B)
 
 
 
-        stats_A = self.MyocardiumStatistics(self.MBF_A)
-        stats_B = self.MyocardiumStatistics(self.MBF_B)
+        stats_A = self.MyocardiumStatistics(self.MBF_A, "ImageScalars")
+        stats_B = self.MyocardiumStatistics(self.MBF_B, "scalars")
         index_stats_A = self.MyocardiumStatistics(IndexMBF_A, 'IndexMBF')
         index_stats_B = self.MyocardiumStatistics(IndexMBF_B, 'IndexMBF')
         opath = os.path.join(self.args.InputFolder, "PrePostStatistics.dat")
@@ -163,7 +154,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             ofile.writelines(f"Myocardium, std, {stats_A['std']}, {stats_B['std']}, {index_stats_A['std']}, {index_stats_B['std']}\n")
             ofile.writelines(f"Myocardium, Median, {stats_A['Median']}, {stats_B['Median']}, {index_stats_A['Median']}, {index_stats_B['Median']}\n")
             ofile.writelines(f"Myocardium, IQR, {stats_A['IQR']}, {stats_B['IQR']}, {index_stats_A['IQR']}, {index_stats_B['IQR']}\n")
-            ofile.writelines(f"Myocardium, 75th Percentile, 0, 0, {perc75_A}, {perc75_B}")
+            ofile.writelines(f"Myocardium, 75th Percentile, 0, 0, {perc75_A}, {perc75_B}\n")
             for key in MBFStat_A.keys():
                 ofile.writelines(f"{key}, Mean, {MBFStat_A[key]['Mean']}, {MBFStat_B[key]['Mean']}, {IndexMBFStat_A[key]['Mean']}, {IndexMBFStat_B[key]['Mean']}\n")
                 ofile.writelines(f"{key}, std, {MBFStat_A[key]['std']}, {MBFStat_B[key]['std']}, {IndexMBFStat_A[key]['std']}, {IndexMBFStat_B[key]['std']}\n")
@@ -176,7 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("-InputFolderPre", "--InputFolderPre", type=str, required= True, dest= "InputFolder")
     parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= False, default= "MBF_Territories.vtu")
     parser.add_argument("-InputLabels", "--InputLabels", dest= "InputLabels", type= str, required= False, default="MBF_Territories_Labels.dat")
-    parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = str, required = False, default = 0)
+    parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = int, required = False, default = 0)
     parser.add_argument("-TerritoryTag", "--TerritoryTag", type= str, required=False, dest = "TerritoryTag")
     parser.add_argument("-Unit", "--Unit", type= str, dest= "Unit", default="cm", required=False)
     args = parser.parse_args()
