@@ -6,7 +6,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
-from utilities import ReadVTUFile, ThresholdInBetween
+from utilities import ReadVTUFile
 from ExtractFlowInTerritories import ExtractSubtendedFlow
 
 class ExtractFlowPrePost(ExtractSubtendedFlow):
@@ -20,19 +20,27 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         self.InputLabels = os.path.join(f"{self.args.InputFolder[:-1]}B",self.args.InputLabels)
 
     def ReadMBFLabels(self):
-        Ischemic_Labels = {"post_LAD": [], "post_LCx":[], "post_RCA":[], "NonIschemic": []}
+        Ischemic_Labels = {}
+        for tag in self.args.TerritoryTag:
+            Ischemic_Labels[f"{tag}"] =  []
+        Ischemic_Labels["NonIschemic"] = []
         keys = list(Ischemic_Labels.keys())[:-1]
         with open(self.InputLabels, "r") as ifile:
             for i, LINE in enumerate(ifile):
-                if i == 0: continue
+                if i == 0: 
+                    continue
                 line = LINE.split()
-                if line[1].find(keys[0])>=0: Ischemic_Labels[keys[0]].append(int(line[0]))
-                elif line[1].find(keys[1])>=0: Ischemic_Labels[keys[1]].append(int(line[0]))
-                elif line[1].find(keys[2])>=0: Ischemic_Labels[keys[2]].append(int(line[0]))
-                else: Ischemic_Labels["NonIschemic"].append(int(line[0]))
+                found = False
+                for key in keys:
+                    if line[1].find(key)>=0: 
+                        Ischemic_Labels[key].append(int(line[0]))
+                        found = True
+                        break
+                if not found: 
+                    Ischemic_Labels["NonIschemic"].append(int(line[0]))
 
 
-        Ischemic_Labels = {k:v for k, v in Ischemic_Labels.items() if len(v)>0}
+        #Ischemic_Labels = {k:v for k, v in Ischemic_Labels.items() if len(v)>0}
         
         return Ischemic_Labels
 
@@ -207,7 +215,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             Bardata["Time"].extend(["PreCABG", "PostCABG"])
             Bardata["Value"].extend([np.sum(IndexFlow_A[key]), np.sum(IndexFlow_B[key])])
 
-        self.BarPlot(Bardata, "relative Flow (\u00b5/min)")
+        self.BarPlot(Bardata, "relative Flow (1/min)")
 
         Bardata = {"Territory": [], "Time": [], "Value": []}
         for key in IndexFlow_A.keys():
@@ -254,7 +262,7 @@ if __name__ == "__main__":
     parser.add_argument("-InputMBF", "--InputMBF", dest= "InputMBF", type= str, required= False, default= "MBF_Territories.vtu")
     parser.add_argument("-InputLabels", "--InputLabels", dest= "InputLabels", type= str, required= False, default="MBF_Territories_Labels.dat")
     parser.add_argument("-ArrayName", "--ArrayName", dest = "ArrayName", type = int, required = False, default = 0)
-    parser.add_argument("-TerritoryTag", "--TerritoryTag", type= str, required=False, dest = "TerritoryTag")
+    parser.add_argument("-TerritoryTag", "--TerritoryTag", type= str, required=True, nargs= "+", dest = "TerritoryTag")
     parser.add_argument("-Unit", "--Unit", type= str, dest= "Unit", default="cm", required=False)
     args = parser.parse_args()
 
