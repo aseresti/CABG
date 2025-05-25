@@ -173,10 +173,20 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         MBFLabels = self.ReadMBFLabels()
         self.MBF_A = self.ConvertPointDataToCellData(self.MBF_A)
         self.MBF_B = self.ConvertPointDataToCellData(self.MBF_B)
-        _, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels, "ImageScalars")
-        _, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels, "scalars")
-        Flow_A, Volume_A, AverageFlow_A, VoxelSize_A = self.CollectFlowData(Territories_A, "ImageScalars")
-        Flow_B, Volume_B, AverageFlow_B, VoxelSize_B = self.CollectFlowData(Territories_B, "scalars")
+
+        for i in range(self.MBF_A.GetCellData().GetNumberOfArrays()):
+            arrayname_ = self.MBF_A.GetCellData().GetArrayName(i)
+            if arrayname_.find('calars')>=0:
+                ScalarArray_A = arrayname_
+        for i in range(self.MBF_B.GetCellData().GetNumberOfArrays()):
+            arrayname_ = self.MBF_A.GetCellData().GetArrayName(i)
+            if arrayname_.find('calars')>=0:
+                ScalarArray_B = arrayname_
+        
+        _, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels, ScalarArray_A)
+        _, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels, ScalarArray_B)
+        Flow_A, Volume_A, AverageFlow_A, VoxelSize_A = self.CollectFlowData(Territories_A, ScalarArray_A)
+        Flow_B, Volume_B, AverageFlow_B, VoxelSize_B = self.CollectFlowData(Territories_B, ScalarArray_B)
 
         Bardata = {"Territory": [], "Time": [], "Value": []}
         for key in Flow_A.keys():
@@ -194,11 +204,11 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
 
         #self.BarPlot(Bardata)
         
-        MBFStat_A = self.TerritoryStatistics(Territories_A, "ImageScalars")
-        MBFStat_B = self.TerritoryStatistics(Territories_B, "scalars")
+        MBFStat_A = self.TerritoryStatistics(Territories_A, ScalarArray_A)
+        MBFStat_B = self.TerritoryStatistics(Territories_B, ScalarArray_B)
 
-        perc75_A, IndexMBF_A = self.Normalize(self.MBF_A, "ImageScalars")
-        perc75_B, IndexMBF_B = self.Normalize(self.MBF_B, "scalars")
+        perc75_A, IndexMBF_A = self.Normalize(self.MBF_A, ScalarArray_A)
+        perc75_B, IndexMBF_B = self.Normalize(self.MBF_B, ScalarArray_B)
         _, ITerritories_A = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
         _, ITerritories_B = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
 
@@ -225,8 +235,8 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         #self.BarPlot(Bardata, "Average relative Flow (\u00b5/min/Voxel)")
 
 
-        stats_A = self.MyocardiumStatistics(self.MBF_A, "ImageScalars")
-        stats_B = self.MyocardiumStatistics(self.MBF_B, "scalars")
+        stats_A = self.MyocardiumStatistics(self.MBF_A, ScalarArray_A)
+        stats_B = self.MyocardiumStatistics(self.MBF_B, ScalarArray_B)
         index_stats_A = self.MyocardiumStatistics(IndexMBF_A, 'IndexMBF')
         index_stats_B = self.MyocardiumStatistics(IndexMBF_B, 'IndexMBF')
 
