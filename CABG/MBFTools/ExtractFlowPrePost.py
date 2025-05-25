@@ -207,7 +207,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             Bardata["Time"].extend(["PreCABG", "PostCABG"])
             Bardata["Value"].extend([np.sum(IndexFlow_A[key]), np.sum(IndexFlow_B[key])])
 
-        #self.BarPlot(Bardata, "relative Flow (1/min)")
+        self.BarPlot(Bardata, "relative Flow (\u00b5/min)")
 
         Bardata = {"Territory": [], "Time": [], "Value": []}
         for key in IndexFlow_A.keys():
@@ -215,7 +215,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             Bardata["Time"].extend(["PreCABG", "PostCABG"])
             Bardata["Value"].extend([np.sum(AverageIndexFlow_A[key]), np.sum(AverageIndexFlow_B[key])])
 
-        self.BarPlot(Bardata, "Average relative Flow (\u00b5/min/Voxel)")
+        #self.BarPlot(Bardata, "Average relative Flow (\u00b5/min/Voxel)")
 
 
         stats_A = self.MyocardiumStatistics(self.MBF_A, "ImageScalars")
