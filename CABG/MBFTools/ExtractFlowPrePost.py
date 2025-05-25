@@ -241,6 +241,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
 
         opath = os.path.join(self.args.InputFolder, "PrePostStatistics.dat")
         with open(opath, 'w') as ofile:
+            ofile.writelines("--- MBF (mL/min/100mL) and Index MBF")
             ofile.writelines("Case, Statistics, MBF_A, MBF_B, IndexMBF_A, IndexMBF_B\n")
             ofile.writelines(f"Myocardium, Mean, {stats_A['Mean']}, {stats_B['Mean']}, {index_stats_A['Mean']}, {index_stats_B['Mean']}\n")
             ofile.writelines(f"Myocardium, std, {stats_A['std']}, {stats_B['std']}, {index_stats_A['std']}, {index_stats_B['std']}\n")
@@ -254,6 +255,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
                 ofile.writelines(f"{key}, Median, {MBFStat_A[key]['Median']}, {MBFStat_B[key]['Median']}, {IndexMBFStat_A[key]['Median']}, {IndexMBFStat_B[key]['Median']}\n")
                 ofile.writelines(f"{key}, IQR, {MBFStat_A[key]['IQR']}, {MBFStat_B[key]['IQR']}, {IndexMBFStat_A[key]['IQR']}, {IndexMBFStat_B[key]['IQR']}\n")
                 ofile.writelines(f"{key}, Territory Volume (mL), {Volume_A[key]}, {Volume_B[key]}, _, _ \n")
+            ofile.writelines("--- Flow (mL/min) and ralative Flow (1/min)")
             for key in Flow_A.keys():
                 ofile.writelines(f"{key}, Mean, {np.mean(Flow_A[key])}, {np.mean(Flow_B[key])}, {np.mean(IndexFlow_A[key])}, {np.mean(IndexFlow_B[key])}\n")
                 ofile.writelines(f"{key}, std, {np.std(Flow_A[key])}, {np.std(Flow_B[key])}, {np.std(IndexFlow_A[key])}, {np.std(IndexFlow_B[key])}\n")
