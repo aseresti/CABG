@@ -43,20 +43,65 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             MBF_data[key] = np.array([])
             AppendTerritory = vtk.vtkAppendFilter()
             for i in MBF_Labels[key]:
-                territory_ = ThresholdInBetween(MBFMap, "TerritoryMaps", i, i)
+                territory_ = self.ThresholdInBetween(MBFMap, "TerritoryMaps", i, i)
                 AppendTerritory.AddInputData(territory_)
-                MBF_ = vtk_to_numpy(territory_.GetPointData().GetArray(ArrayName))
+                MBF_ = vtk_to_numpy(territory_.GetCellData().GetArray(ArrayName))
                 MBF_data[key] = np.append(MBF_, MBF_data[key])
             AppendTerritory.Update()
             Territories[key] = AppendTerritory.GetOutput()
         
         return MBF_data, Territories
 
-    def CollectFlowData(self, Territories, Unit, ArrayName):
-        SubtendedFlow = {key: ExtractSubtendedFlow(self.args).CalculateFlowInVoluem(item, Unit, ArrayName) for (key, item) in Territories.items()}            
-        return SubtendedFlow
+    def CollectFlowData(self, Territories, ArrayName):
+        Flow_Territoris = {k:v for k, v in Territories.items()}
+        Volume_Territories = {k:v for k, v in Territories.items()}
+        Average_Flow = {k:v for k, v in Territories.items()}
 
-    def BarPlot(self, BarData):
+        for (key, value) in Territories.items():
+            flow_, territory_volume_, NCell = self.CalculateCellDataFlow(value, ArrayName)
+            Flow_Territoris[key] = flow_
+            Volume_Territories[key] = territory_volume_
+            Average_Flow[key] = flow_/NCell
+            voxel_size = territory_volume_/NCell
+            
+        return Flow_Territoris, Volume_Territories, Average_Flow, voxel_size
+    
+    def ThresholdInBetween(self, Volume, arrayname, value1, value2):
+        Threshold=vtk.vtkThreshold()
+        Threshold.SetInputData(Volume)
+        Threshold.SetLowerThreshold(value1)
+        Threshold.SetUpperThreshold(value2)
+        Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_CELLS,arrayname)
+        Threshold.Update()
+        return Threshold.GetOutput()
+    
+    def ConvertPointDataToCellData(self, pointdata):
+        PointToCell = vtk.vtkPointDataToCellData()
+        PointToCell.SetInputData(pointdata)
+        PointToCell.Update()
+
+        return PointToCell.GetOutput()
+
+    def CalculateCellDataFlow(self, Territory, ArrayName):
+        CellData = Territory.GetCellData()
+        ImageScalars = vtk_to_numpy(CellData.GetArray(ArrayName))
+        NCells = Territory.GetNumberOfCells()
+        TerritoryVolume = 0
+        TerritoryFlow = []
+        for i in range(NCells):
+            cell = Territory.GetCell(i)
+            cell_bounds = cell.GetBounds()
+            cell_volume = abs(cell_bounds[0] - cell_bounds[1]) * abs(cell_bounds[2] - cell_bounds[3]) * abs(cell_bounds[4] - cell_bounds[5])
+            TerritoryFlow.append(ImageScalars[i]*cell_volume)
+            TerritoryVolume += cell_volume
+
+        if self.args.Unit == 'mm':
+            return np.array(TerritoryFlow)/1000/100, TerritoryVolume/1000, NCells
+        elif self.args.Unit == 'cm':
+            return np.array(TerritoryFlow)/100, TerritoryVolume, NCells
+
+
+    def BarPlot(self, BarData, ylabel):
         df = pd.DataFrame(BarData)
         plt.figure(figsize=(8, 5))
         pastel_colors = sns.color_palette("pastel")
@@ -74,7 +119,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
                     fontsize=9
                 )
 
-        plt.ylabel("Flow (mL/min)")
+        plt.ylabel(ylabel)
         plt.xticks(rotation=45, ha="right")
         plt.tight_layout()
         plt.show()
@@ -82,20 +127,21 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
     def BoxPlot(self, BoxData):
         pass
 
-    def TerritoryStatistics(self, MBF_Data):
-        statistics_dict = {"Mean":0, "Stdev": 0, "Median":0, "IQR":0}
-        MBFStatistics = {key: statistics_dict for key in MBF_Data.keys()}
-        for (key, item) in MBF_Data.items():
-            item = np.array(item)
-            MBFStatistics[key]["Mean"] = np.mean(item)
-            MBFStatistics[key]["std"] = np.std(item)
-            MBFStatistics[key]["Median"] = np.median(item)
-            MBFStatistics[key]["IQR"] = np.percentile(item, 75) - np.percentile(item, 25)
+    def TerritoryStatistics(self, Territories,ArrayName):
+        MBFStatistics = {}
+        for (key, item) in Territories.items():
+            item_ = vtk_to_numpy(item.GetCellData().GetArray(ArrayName))
+            MBFStatistics[key] = {
+            "Mean": np.mean(item_),
+            "std": np.std(item_),
+            "Median": np.median(item_),
+            "IQR": np.percentile(item_, 75) - np.percentile(item_, 25)
+            }
 
         return MBFStatistics
     
     def MyocardiumStatistics(self, MBF, ArrayName):
-        Array = vtk_to_numpy(MBF.GetPointData().GetArray(ArrayName))
+        Array = vtk_to_numpy(MBF.GetCellData().GetArray(ArrayName))
         Myocardium_Statistics  = {
             "Mean": np.mean(Array),
             "std": np.std(Array),
@@ -106,57 +152,85 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
 
     
     def Normalize(self, MBF, ArrayName):
-        ScalarArray = MBF.GetPointData().GetArray(ArrayName)
+        ScalarArray = MBF.GetCellData().GetArray(ArrayName)
         per_75th = np.percentile(vtk_to_numpy(ScalarArray), 75)
         IndexMBFArray = ScalarArray/per_75th
         IndexMBF = numpy_to_vtk(IndexMBFArray)
         IndexMBF.SetName("IndexMBF")
-        MBF.GetPointData().AddArray(IndexMBF)
+        MBF.GetCellData().AddArray(IndexMBF)
 
         return per_75th, MBF
     
     def main(self):
         self.ReadPrePostFiles()
         MBFLabels = self.ReadMBFLabels()
+        self.MBF_A = self.ConvertPointDataToCellData(self.MBF_A)
+        self.MBF_B = self.ConvertPointDataToCellData(self.MBF_B)
         MBFData_A, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels, "ImageScalars")
         MBFData_B, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels, "scalars")
-        Flow_A = self.CollectFlowData(Territories_A, self.args.Unit, "ImageScalars")
-        Flow_B = self.CollectFlowData(Territories_B, self.args.Unit, "scalars")
+        Flow_A, Volume_A, AverageFlow_A, VoxelSize_A = self.CollectFlowData(Territories_A, "ImageScalars")
+        Flow_B, Volume_B, AverageFlow_B, VoxelSize_B = self.CollectFlowData(Territories_B, "scalars")
 
         Bardata = {"Territory": [], "Time": [], "Value": []}
         for key in Flow_A.keys():
             Bardata["Territory"].extend([key, key])
             Bardata["Time"].extend(["PreCABG", "PostCABG"])
-            Bardata["Value"].extend([Flow_A[key], Flow_B[key]])
+            Bardata["Value"].extend([np.sum(Flow_A[key]), np.sum(Flow_B[key])])
 
-        self.BarPlot(Bardata)
+        #self.BarPlot(Bardata)
+
+        Bardata = {"Territory": [], "Time": [], "Value": []}
+        for key in Flow_A.keys():
+            Bardata["Territory"].extend([key, key])
+            Bardata["Time"].extend(["PreCABG", "PostCABG"])
+            Bardata["Value"].extend([np.sum(AverageFlow_A[key])*1000, np.sum(AverageFlow_B[key])*1000])
+
+        #self.BarPlot(Bardata)
         
-        MBFStat_A = self.TerritoryStatistics(MBFData_A)
-        MBFStat_B = self.TerritoryStatistics(MBFData_B)
+        MBFStat_A = self.TerritoryStatistics(Territories_A, "ImageScalars")
+        MBFStat_B = self.TerritoryStatistics(Territories_B, "scalars")
+
         perc75_A, IndexMBF_A = self.Normalize(self.MBF_A, "ImageScalars")
         perc75_B, IndexMBF_B = self.Normalize(self.MBF_B, "scalars")
         IndexMBFData_A, ITerritories_A = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
         IndexMBFData_B, ITerritories_B = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
 
-        IndexMBFStat_A = self.TerritoryStatistics(IndexMBFData_A)
-        IndexMBFStat_B = self.TerritoryStatistics(IndexMBFData_B)
+        IndexMBFStat_A = self.TerritoryStatistics(ITerritories_A, "IndexMBF")
+        IndexMBFStat_B = self.TerritoryStatistics(ITerritories_B, "IndexMBF")
 
-        IndexFlow_A = self.CollectFlowData(ITerritories_A, self.args.Unit, "IndexMBF")
-        IndexFlow_B = self.CollectFlowData(ITerritories_B, self.args.Unit, "IndexMBF")
+        IndexFlow_A, _, AverageIndexFlow_A, _ = self.CollectFlowData(ITerritories_A, "IndexMBF")
+        IndexFlow_B, _, AverageIndexFlow_B, _ = self.CollectFlowData(ITerritories_B, "IndexMBF")
 
         Bardata = {"Territory": [], "Time": [], "Value": []}
         for key in IndexFlow_A.keys():
             Bardata["Territory"].extend([key, key])
             Bardata["Time"].extend(["PreCABG", "PostCABG"])
-            Bardata["Value"].extend([IndexFlow_A[key], IndexFlow_B[key]])
+            Bardata["Value"].extend([np.sum(IndexFlow_A[key]), np.sum(IndexFlow_B[key])])
 
-        self.BarPlot(Bardata)
+        #self.BarPlot(Bardata, "relative Flow (1/min)")
+
+        Bardata = {"Territory": [], "Time": [], "Value": []}
+        for key in IndexFlow_A.keys():
+            Bardata["Territory"].extend([key, key])
+            Bardata["Time"].extend(["PreCABG", "PostCABG"])
+            Bardata["Value"].extend([np.sum(AverageIndexFlow_A[key]), np.sum(AverageIndexFlow_B[key])])
+
+        self.BarPlot(Bardata, "Average relative Flow (\u00b5/min/Voxel)")
 
 
         stats_A = self.MyocardiumStatistics(self.MBF_A, "ImageScalars")
         stats_B = self.MyocardiumStatistics(self.MBF_B, "scalars")
         index_stats_A = self.MyocardiumStatistics(IndexMBF_A, 'IndexMBF')
         index_stats_B = self.MyocardiumStatistics(IndexMBF_B, 'IndexMBF')
+
+        Bardata2 = {"Territory": [], "Time": [], "Value": []}
+        for key in IndexMBFStat_A.keys():
+            Bardata2["Territory"].extend([key, key])
+            Bardata2["Time"].extend(["PreCABG", "PostCABG"])
+            Bardata2["Value"].extend([IndexMBFStat_A[key]['Mean'], IndexMBFStat_B[key]['Mean']])
+
+        self.BarPlot(Bardata2, "Average Index MBF (1/min/100mL)")
+
         opath = os.path.join(self.args.InputFolder, "PrePostStatistics.dat")
         with open(opath, 'w') as ofile:
             ofile.writelines("Case, Statistics, MBF_A, MBF_B, IndexMBF_A, IndexMBF_B\n")
@@ -165,11 +239,13 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             ofile.writelines(f"Myocardium, Median, {stats_A['Median']}, {stats_B['Median']}, {index_stats_A['Median']}, {index_stats_B['Median']}\n")
             ofile.writelines(f"Myocardium, IQR, {stats_A['IQR']}, {stats_B['IQR']}, {index_stats_A['IQR']}, {index_stats_B['IQR']}\n")
             ofile.writelines(f"Myocardium, 75th Percentile, 0, 0, {perc75_A}, {perc75_B}\n")
+            ofile.writelines(f"Myocardium, VoxelSize, {VoxelSize_A}, {VoxelSize_B}, _, _\n")
             for key in MBFStat_A.keys():
                 ofile.writelines(f"{key}, Mean, {MBFStat_A[key]['Mean']}, {MBFStat_B[key]['Mean']}, {IndexMBFStat_A[key]['Mean']}, {IndexMBFStat_B[key]['Mean']}\n")
                 ofile.writelines(f"{key}, std, {MBFStat_A[key]['std']}, {MBFStat_B[key]['std']}, {IndexMBFStat_A[key]['std']}, {IndexMBFStat_B[key]['std']}\n")
                 ofile.writelines(f"{key}, Median, {MBFStat_A[key]['Median']}, {MBFStat_B[key]['Median']}, {IndexMBFStat_A[key]['Median']}, {IndexMBFStat_B[key]['Median']}\n")
                 ofile.writelines(f"{key}, IQR, {MBFStat_A[key]['IQR']}, {MBFStat_B[key]['IQR']}, {IndexMBFStat_A[key]['IQR']}, {IndexMBFStat_B[key]['IQR']}\n")
+                ofile.writelines(f"{key}, Territory Volume (mL), {Volume_A[key]}, {Volume_B[key]}, _, _ \n")
 
 
 if __name__ == "__main__":
