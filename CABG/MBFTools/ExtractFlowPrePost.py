@@ -22,7 +22,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
     def ReadMBFLabels(self):
         Ischemic_Labels = {}
         for tag in self.args.TerritoryTag:
-            Ischemic_Labels[f"{tag.replace('post_', '')}"] =  []
+            Ischemic_Labels[f"{tag}"] =  []
         Ischemic_Labels["Nongrafted"] = []
         keys = list(Ischemic_Labels.keys())[:-1]
         with open(self.InputLabels, "r") as ifile:
@@ -39,8 +39,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
                 if not found: 
                     Ischemic_Labels["Nongrafted"].append(int(line[0]))
 
-
-        #Ischemic_Labels = {k:v for k, v in Ischemic_Labels.items() if len(v)>0}
+        Ischemic_Labels = {k.replace('post_', ''):v for k,v in Ischemic_Labels.items() if len(v)>0}
         
         return Ischemic_Labels
 
