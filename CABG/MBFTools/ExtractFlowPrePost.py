@@ -174,8 +174,8 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         MBFLabels = self.ReadMBFLabels()
         self.MBF_A = self.ConvertPointDataToCellData(self.MBF_A)
         self.MBF_B = self.ConvertPointDataToCellData(self.MBF_B)
-        MBFData_A, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels, "ImageScalars")
-        MBFData_B, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels, "scalars")
+        _, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels, "ImageScalars")
+        _, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels, "scalars")
         Flow_A, Volume_A, AverageFlow_A, VoxelSize_A = self.CollectFlowData(Territories_A, "ImageScalars")
         Flow_B, Volume_B, AverageFlow_B, VoxelSize_B = self.CollectFlowData(Territories_B, "scalars")
 
@@ -200,8 +200,8 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
 
         perc75_A, IndexMBF_A = self.Normalize(self.MBF_A, "ImageScalars")
         perc75_B, IndexMBF_B = self.Normalize(self.MBF_B, "scalars")
-        IndexMBFData_A, ITerritories_A = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
-        IndexMBFData_B, ITerritories_B = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
+        _, ITerritories_A = self.ReadTerritoryMBF(IndexMBF_A, MBFLabels, "IndexMBF")
+        _, ITerritories_B = self.ReadTerritoryMBF(IndexMBF_B, MBFLabels, "IndexMBF")
 
         IndexMBFStat_A = self.TerritoryStatistics(ITerritories_A, "IndexMBF")
         IndexMBFStat_B = self.TerritoryStatistics(ITerritories_B, "IndexMBF")
@@ -254,6 +254,12 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
                 ofile.writelines(f"{key}, Median, {MBFStat_A[key]['Median']}, {MBFStat_B[key]['Median']}, {IndexMBFStat_A[key]['Median']}, {IndexMBFStat_B[key]['Median']}\n")
                 ofile.writelines(f"{key}, IQR, {MBFStat_A[key]['IQR']}, {MBFStat_B[key]['IQR']}, {IndexMBFStat_A[key]['IQR']}, {IndexMBFStat_B[key]['IQR']}\n")
                 ofile.writelines(f"{key}, Territory Volume (mL), {Volume_A[key]}, {Volume_B[key]}, _, _ \n")
+            for key in Flow_A.keys():
+                ofile.writelines(f"{key}, Mean, {np.mean(Flow_A[key])}, {np.mean(Flow_B[key])}, {np.mean(IndexFlow_A[key])}, {np.mean(IndexFlow_B[key])}\n")
+                ofile.writelines(f"{key}, std, {np.std(Flow_A[key])}, {np.std(Flow_B[key])}, {np.std(IndexFlow_A[key])}, {np.std(IndexFlow_B[key])}\n")
+                ofile.writelines(f"{key}, Median, {np.median(Flow_A[key])}, {np.median(Flow_B[key])}, {np.median(IndexFlow_A[key])}, {np.median(IndexFlow_B[key])}\n")
+                ofile.writelines(f"{key}, IQR, {np.percentile(Flow_A[key], 75) - np.percentile(Flow_A[key], 25)}, {np.percentile(Flow_B[key], 75) - np.percentile(Flow_B[key], 25)}, {np.percentile(IndexFlow_A[key], 75) - np.percentile(IndexFlow_A[key], 25)}, {np.percentile(IndexFlow_B[key], 75) - np.percentile(IndexFlow_B[key], 25)}\n")
+
 
 
 if __name__ == "__main__":
