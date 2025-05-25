@@ -22,8 +22,8 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
     def ReadMBFLabels(self):
         Ischemic_Labels = {}
         for tag in self.args.TerritoryTag:
-            Ischemic_Labels[f"{tag}"] =  []
-        Ischemic_Labels["NonIschemic"] = []
+            Ischemic_Labels[f"{tag.replace('post_', '')}"] =  []
+        Ischemic_Labels["Nongrafted"] = []
         keys = list(Ischemic_Labels.keys())[:-1]
         with open(self.InputLabels, "r") as ifile:
             for i, LINE in enumerate(ifile):
@@ -37,7 +37,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
                         found = True
                         break
                 if not found: 
-                    Ischemic_Labels["NonIschemic"].append(int(line[0]))
+                    Ischemic_Labels["Nongrafted"].append(int(line[0]))
 
 
         #Ischemic_Labels = {k:v for k, v in Ischemic_Labels.items() if len(v)>0}
@@ -111,7 +111,7 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
 
     def BarPlot(self, BarData, ylabel):
         df = pd.DataFrame(BarData)
-        plt.figure(figsize=(8, 5))
+        plt.figure(figsize=(16, 10))
         pastel_colors = sns.color_palette("pastel")
         selected_colors = [pastel_colors[3], pastel_colors[2]]
         ax = sns.barplot(data=df, x="Territory", y="Value", hue="Time", palette=selected_colors)
@@ -124,11 +124,11 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
                     f"{height:.1f}",
                     ha="center",
                     va="bottom",
-                    fontsize=9
+                    fontsize=12
                 )
 
-        plt.ylabel(ylabel)
-        plt.xticks(rotation=45, ha="right")
+        plt.ylabel(ylabel, fontsize = 15)
+        plt.xticks(rotation=45, ha="right", fontsize = 15)
         plt.tight_layout()
         plt.show()
 
@@ -213,9 +213,9 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
         for key in IndexFlow_A.keys():
             Bardata["Territory"].extend([key, key])
             Bardata["Time"].extend(["PreCABG", "PostCABG"])
-            Bardata["Value"].extend([np.sum(IndexFlow_A[key]), np.sum(IndexFlow_B[key])])
+            Bardata["Value"].extend([np.sum(IndexFlow_A[key])*1000, np.sum(IndexFlow_B[key])*1000])
 
-        self.BarPlot(Bardata, "relative Flow (1/min)")
+        self.BarPlot(Bardata, "relative Flow ($mm^3$)")
 
         Bardata = {"Territory": [], "Time": [], "Value": []}
         for key in IndexFlow_A.keys():
@@ -237,30 +237,33 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             Bardata2["Time"].extend(["PreCABG", "PostCABG"])
             Bardata2["Value"].extend([IndexMBFStat_A[key]['Mean'], IndexMBFStat_B[key]['Mean']])
 
-        self.BarPlot(Bardata2, "Average Index MBF (1/min/100mL)")
+        self.BarPlot(Bardata2, "Average Index MBF")
 
         opath = os.path.join(self.args.InputFolder, "PrePostStatistics.dat")
         with open(opath, 'w') as ofile:
-            ofile.writelines("--- MBF (mL/min/100mL) and Index MBF")
-            ofile.writelines("Case, Statistics, MBF_A, MBF_B, IndexMBF_A, IndexMBF_B\n")
-            ofile.writelines(f"Myocardium, Mean, {stats_A['Mean']}, {stats_B['Mean']}, {index_stats_A['Mean']}, {index_stats_B['Mean']}\n")
-            ofile.writelines(f"Myocardium, std, {stats_A['std']}, {stats_B['std']}, {index_stats_A['std']}, {index_stats_B['std']}\n")
-            ofile.writelines(f"Myocardium, Median, {stats_A['Median']}, {stats_B['Median']}, {index_stats_A['Median']}, {index_stats_B['Median']}\n")
-            ofile.writelines(f"Myocardium, IQR, {stats_A['IQR']}, {stats_B['IQR']}, {index_stats_A['IQR']}, {index_stats_B['IQR']}\n")
-            ofile.writelines(f"Myocardium, 75th Percentile, 0, 0, {perc75_A}, {perc75_B}\n")
-            ofile.writelines(f"Myocardium, VoxelSize, {VoxelSize_A}, {VoxelSize_B}, _, _\n")
+            ofile.writelines("--- MBF (mL/min/100mL) and Index MBF\n")
+            ofile.writelines("Statistics, MBF_A, MBF_B, IndexMBF_A, IndexMBF_B\n")
+            ofile.writelines("----- Myocardium\n")
+            ofile.writelines(f"Mean, {stats_A['Mean']}, {stats_B['Mean']}, {index_stats_A['Mean']}, {index_stats_B['Mean']}\n")
+            ofile.writelines(f"std, {stats_A['std']}, {stats_B['std']}, {index_stats_A['std']}, {index_stats_B['std']}\n")
+            ofile.writelines(f"Median, {stats_A['Median']}, {stats_B['Median']}, {index_stats_A['Median']}, {index_stats_B['Median']}\n")
+            ofile.writelines(f"IQR, {stats_A['IQR']}, {stats_B['IQR']}, {index_stats_A['IQR']}, {index_stats_B['IQR']}\n")
+            ofile.writelines(f"75th Percentile, 0, 0, {perc75_A}, {perc75_B}\n")
+            ofile.writelines(f"VoxelSize (mm^3), {VoxelSize_A*1000}, {VoxelSize_B*1000}, _, _\n")
             for key in MBFStat_A.keys():
-                ofile.writelines(f"{key}, Mean, {MBFStat_A[key]['Mean']}, {MBFStat_B[key]['Mean']}, {IndexMBFStat_A[key]['Mean']}, {IndexMBFStat_B[key]['Mean']}\n")
-                ofile.writelines(f"{key}, std, {MBFStat_A[key]['std']}, {MBFStat_B[key]['std']}, {IndexMBFStat_A[key]['std']}, {IndexMBFStat_B[key]['std']}\n")
-                ofile.writelines(f"{key}, Median, {MBFStat_A[key]['Median']}, {MBFStat_B[key]['Median']}, {IndexMBFStat_A[key]['Median']}, {IndexMBFStat_B[key]['Median']}\n")
-                ofile.writelines(f"{key}, IQR, {MBFStat_A[key]['IQR']}, {MBFStat_B[key]['IQR']}, {IndexMBFStat_A[key]['IQR']}, {IndexMBFStat_B[key]['IQR']}\n")
-                ofile.writelines(f"{key}, Territory Volume (mL), {Volume_A[key]}, {Volume_B[key]}, _, _ \n")
-            ofile.writelines("--- Flow (mL/min) and ralative Flow (1/min)")
-            for key in Flow_A.keys():
-                ofile.writelines(f"{key}, Mean, {np.mean(Flow_A[key])}, {np.mean(Flow_B[key])}, {np.mean(IndexFlow_A[key])}, {np.mean(IndexFlow_B[key])}\n")
-                ofile.writelines(f"{key}, std, {np.std(Flow_A[key])}, {np.std(Flow_B[key])}, {np.std(IndexFlow_A[key])}, {np.std(IndexFlow_B[key])}\n")
-                ofile.writelines(f"{key}, Median, {np.median(Flow_A[key])}, {np.median(Flow_B[key])}, {np.median(IndexFlow_A[key])}, {np.median(IndexFlow_B[key])}\n")
-                ofile.writelines(f"{key}, IQR, {np.percentile(Flow_A[key], 75) - np.percentile(Flow_A[key], 25)}, {np.percentile(Flow_B[key], 75) - np.percentile(Flow_B[key], 25)}, {np.percentile(IndexFlow_A[key], 75) - np.percentile(IndexFlow_A[key], 25)}, {np.percentile(IndexFlow_B[key], 75) - np.percentile(IndexFlow_B[key], 25)}\n")
+                ofile.writelines(f"----- {key}\n")
+                ofile.writelines(f"Mean, {MBFStat_A[key]['Mean']}, {MBFStat_B[key]['Mean']}, {IndexMBFStat_A[key]['Mean']}, {IndexMBFStat_B[key]['Mean']}\n")
+                ofile.writelines(f"std, {MBFStat_A[key]['std']}, {MBFStat_B[key]['std']}, {IndexMBFStat_A[key]['std']}, {IndexMBFStat_B[key]['std']}\n")
+                ofile.writelines(f"Median, {MBFStat_A[key]['Median']}, {MBFStat_B[key]['Median']}, {IndexMBFStat_A[key]['Median']}, {IndexMBFStat_B[key]['Median']}\n")
+                ofile.writelines(f"IQR, {MBFStat_A[key]['IQR']}, {MBFStat_B[key]['IQR']}, {IndexMBFStat_A[key]['IQR']}, {IndexMBFStat_B[key]['IQR']}\n")
+                ofile.writelines(f"Territory Volume (mL), {Volume_A[key]}, {Volume_B[key]}, _, _ \n")
+            #ofile.writelines("--- Flow (mL/min) and ralative Flow (1/min)\n")
+            """for key in Flow_A.keys():
+                ofile.writelines(f"----- {key}\n")
+                ofile.writelines(f"Mean, {np.mean(Flow_A[key])}, {np.mean(Flow_B[key])}, {np.mean(IndexFlow_A[key])}, {np.mean(IndexFlow_B[key])}\n")
+                ofile.writelines(f"std, {np.std(Flow_A[key])}, {np.std(Flow_B[key])}, {np.std(IndexFlow_A[key])}, {np.std(IndexFlow_B[key])}\n")
+                ofile.writelines(f"Median, {np.median(Flow_A[key])}, {np.median(Flow_B[key])}, {np.median(IndexFlow_A[key])}, {np.median(IndexFlow_B[key])}\n")
+                ofile.writelines(f"IQR, {np.percentile(Flow_A[key], 75) - np.percentile(Flow_A[key], 25)}, {np.percentile(Flow_B[key], 75) - np.percentile(Flow_B[key], 25)}, {np.percentile(IndexFlow_A[key], 75) - np.percentile(IndexFlow_A[key], 25)}, {np.percentile(IndexFlow_B[key], 75) - np.percentile(IndexFlow_B[key], 25)}\n")"""
 
 
 
