@@ -1,6 +1,9 @@
 import os
+import vtk
 import argparse
+import numpy as np
 from utilities import ReadVTUFile, ThresholdInBetween
+from vtk.util.numpy_support import vtk_to_numpy
 
 class ExtractSubtendedFlow():
     def __init__(self, args):
@@ -62,6 +65,59 @@ class ExtractSubtendedFlow():
             ofile.writelines("Territory Tags:\n")
             ofile.writelines(f"{self.TerritoryTags}\n")
             ofile.writelines(f"Territory Flow: {int(SubtendedFlow*100)/100} mL/min")
+
+    def ThresholdInBetween(self, Volume, arrayname, value1, value2):
+        Threshold=vtk.vtkThreshold()
+        Threshold.SetInputData(Volume)
+        Threshold.SetLowerThreshold(value1)
+        Threshold.SetUpperThreshold(value2)
+        Threshold.SetInputArrayToProcess(0,0,0,vtk.vtkDataObject.FIELD_ASSOCIATION_CELLS,arrayname)
+        Threshold.Update()
+        return Threshold.GetOutput()
+    
+    def ConvertPointDataToCellData(self, pointdata):
+        PointToCell = vtk.vtkPointDataToCellData()
+        PointToCell.SetInputData(pointdata)
+        PointToCell.Update()
+
+        return PointToCell.GetOutput()
+
+    def CalculateCellDataFlow(self, Territory, ArrayName):
+        CellData = Territory.GetCellData()
+        ImageScalars = vtk_to_numpy(CellData.GetArray(ArrayName))
+        NCells = Territory.GetNumberOfCells()
+        TerritoryVolume = 0
+        TerritoryFlow = []
+        for i in range(NCells):
+            cell = Territory.GetCell(i)
+            cell_bounds = cell.GetBounds()
+            cell_volume = abs(cell_bounds[0] - cell_bounds[1]) * abs(cell_bounds[2] - cell_bounds[3]) * abs(cell_bounds[4] - cell_bounds[5])
+            TerritoryFlow.append(ImageScalars[i]*cell_volume)
+            TerritoryVolume += cell_volume
+
+        if self.args.Unit == 'mm':
+            return np.array(TerritoryFlow)/1000/100, TerritoryVolume/1000, NCells, ImageScalars
+        elif self.args.Unit == 'cm':
+            return np.array(TerritoryFlow)/100, TerritoryVolume, NCells, ImageScalars
+
+    def ExtractCellDataSubtendedTerritory(self, MBF, ArrayName):
+        SubtendedFlow = 0
+        self.TerritoryTags = ""
+        NCells = 0
+        TerritoryVolume = 0
+        MBFScalarArray = np.array([])
+        for (key, item) in self.Labels.items():
+            if self.args.TerritoryTag in key:
+                self.TerritoryTags += os.path.splitext(key)[0] + "+"
+                territory_ = self.ThresholdInBetween(MBF, "TerritoryMaps", int(item), int(item))
+                flow_, volume_, nCells, scalararray = self.CalculateCellDataFlow(territory_, ArrayName)
+                SubtendedFlow += np.sum(flow_)
+                NCells += nCells
+                TerritoryVolume += volume_
+                MBFScalarArray = np.append(scalararray, MBFScalarArray)
+        
+        return SubtendedFlow, TerritoryVolume/NCells*1000, TerritoryVolume, MBFScalarArray
+
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
