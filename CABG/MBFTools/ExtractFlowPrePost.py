@@ -178,10 +178,12 @@ class ExtractFlowPrePost(ExtractSubtendedFlow):
             arrayname_ = self.MBF_A.GetCellData().GetArrayName(i)
             if arrayname_.find('calars')>=0:
                 ScalarArray_A = arrayname_
+        ScalarArray_A = "ImageScalars"
         for i in range(self.MBF_B.GetCellData().GetNumberOfArrays()):
             arrayname_ = self.MBF_A.GetCellData().GetArrayName(i)
             if arrayname_.find('calars')>=0:
                 ScalarArray_B = arrayname_
+        ScalarArray_B = "scalars"
         
         _, Territories_A = self.ReadTerritoryMBF(self.MBF_A, MBFLabels, ScalarArray_A)
         _, Territories_B = self.ReadTerritoryMBF(self.MBF_B, MBFLabels, ScalarArray_B)
