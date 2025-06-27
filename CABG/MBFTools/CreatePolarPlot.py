@@ -263,8 +263,8 @@ class CreatePolarPlot():
 if __name__ == "__main__":
     Parser = argparse.ArgumentParser()
     Parser.add_argument("-InputFolder", "--InputFolder", dest= "InputFolder", required=True, type=str)
-    Parser.add_argument("-SliceApex", "--SliceApex", dest= "SliceApex", required=False, type=str, default="SliceApex.vtp")
-    Parser.add_argument("-SliceBase", "--SliceBase", dest= "SliceBase", required=False, type=str, default="SliceBase.vtp")
+    Parser.add_argument("-SliceApex", "--SliceApex", dest= "SliceApex", required=False, type=str, default="slice_apex.vtp")
+    Parser.add_argument("-SliceBase", "--SliceBase", dest= "SliceBase", required=False, type=str, default="slice_base.vtp")
     Parser.add_argument("-Myocardium", "--Myocardium", dest= "Myocardium", required=False, type=str, default="MyocardiumSurface.vtp")
     Parser.add_argument("-PathFolder", "--PathFolder", dest= "PathFolder", required= False, type= str, default="Paths")
     Parser.add_argument("-PlotRadius", "--PlotRadius", dest= "PlotRadius", default=12.0, type= float, required= False)
