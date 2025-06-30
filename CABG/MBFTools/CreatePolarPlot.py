@@ -48,6 +48,7 @@ class CreatePolarPlot():
             self.OutputFolder = OutputFolder
 
         self.R_max = args.PlotRadius
+        self.Scale = args.Scale
 
     def Line(self, point1, point2, res):
         line = vtk.vtkLineSource()
@@ -88,16 +89,23 @@ class CreatePolarPlot():
         ])
         CL_direction = CL_dir/np.linalg.norm(CL_dir)
 
+        if self.Scale == "cm":
+            Apex_cover = 1.5
+            Base_cover = 5
+        elif self.Scale == "mm":
+            Apex_cover = 15
+            Base_cover = 50
+
         point0 = np.array([
-            centeroid_base[0] + CL_direction[0]*5,
-            centeroid_base[1] + CL_direction[1]*5,
-            centeroid_base[2] + CL_direction[2]*5
+            centeroid_base[0] + CL_direction[0]*Base_cover,
+            centeroid_base[1] + CL_direction[1]*Base_cover,
+            centeroid_base[2] + CL_direction[2]*Base_cover
         ])
 
         point1 = np.array([
-            centeroid_apex[0] - CL_direction[0]*1.5,
-            centeroid_apex[1] - CL_direction[1]*1.5,
-            centeroid_apex[2] - CL_direction[2]*1.5
+            centeroid_apex[0] - CL_direction[0]*Apex_cover,
+            centeroid_apex[1] - CL_direction[1]*Apex_cover,
+            centeroid_apex[2] - CL_direction[2]*Apex_cover
         ])
 
         CenterLine = self.Line(point0, point1, resolution)
@@ -172,7 +180,7 @@ class CreatePolarPlot():
         CL_direction, CenterLine = self.DefineMyocardiumCenterLine(self.centeroid_base, self.centeroid_apex, 1000)
         rotation, _ = R.align_vectors([[0, 0, 1]], [CL_direction])
 
-        print("- Mapping Myocardium onto Polar Plot")
+        print("- Mapping Myocardium onto a Polar Plot")
         Npoints  = CenterLine.GetNumberOfPoints()
         R_map = [i * self.R_max/Npoints for i in range(Npoints, 0, -1)]
 
@@ -210,7 +218,7 @@ class CreatePolarPlot():
             append_filter.AddInputData(self.AddProfileToPolyData(slice_MBF_territory, WallThickness, WallThicknessArrayName))
         append_filter.Update()
 
-        print("- Writing Territory and Ischemic Maps and Regions")
+        print("- Writing Average MBF, Territory, and WallThickness Maps and Regions")
         PolarMap = self.MeshPolyData(append_filter.GetOutput())
 
         WriteVTPFile(os.path.join(self.OutputFolder, "MyocardiumPolarMap.vtp"), PolarMap)
@@ -266,8 +274,9 @@ if __name__ == "__main__":
     Parser.add_argument("-SliceApex", "--SliceApex", dest= "SliceApex", required=False, type=str, default="slice_apex.vtp")
     Parser.add_argument("-SliceBase", "--SliceBase", dest= "SliceBase", required=False, type=str, default="slice_base.vtp")
     Parser.add_argument("-Myocardium", "--Myocardium", dest= "Myocardium", required=False, type=str, default="MyocardiumSurface.vtp")
-    Parser.add_argument("-PathFolder", "--PathFolder", dest= "PathFolder", required= False, type= str, default="Paths")
-    Parser.add_argument("-PlotRadius", "--PlotRadius", dest= "PlotRadius", default=12.0, type= float, required= False)
+    Parser.add_argument("-PathFolder", "--PathFolder", dest= "PathFolder", required= False, type=str, default="Paths")
+    Parser.add_argument("-PlotRadius", "--PlotRadius", dest= "PlotRadius", default=12.0, type=float, required= False)
+    Parser.add_argument("-Scale", "--Scale", dest= "Scale", default="cm", type=str, required=False)
     args = Parser.parse_args()
 
     CreatePolarPlot(args).BullsEye()
