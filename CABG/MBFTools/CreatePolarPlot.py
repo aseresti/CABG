@@ -292,17 +292,20 @@ class CreatePolarPlot():
                 pt_x.append(new_points_sorted[num][0])
                 pt_y.append(new_points_sorted[num][1])
                 pt_z.append(new_points_sorted[num][2])
-
-            interp_func_x = interp1d(range(current_num_points), pt_x, kind='linear')
-            interp_func_y = interp1d(range(current_num_points), pt_y, kind='linear')
-            interp_func_z = interp1d(range(current_num_points), pt_z, kind='linear')
-            new_points_interp = []
-            for idx in interp_indices:
-                new_points_interp.append([
-                    float(interp_func_x(idx)),
-                    float(interp_func_y(idx)),
-                    float(interp_func_z(idx))
-                ])
+            if current_num_points < 2:
+                print(f"--- Skipping {os.path.basename(path)}: Not enough points for interpolation")
+                continue
+            else:
+                interp_func_x = interp1d(range(current_num_points), pt_x, kind='linear')
+                interp_func_y = interp1d(range(current_num_points), pt_y, kind='linear')
+                interp_func_z = interp1d(range(current_num_points), pt_z, kind='linear')
+                new_points_interp = []
+                for idx in interp_indices:
+                    new_points_interp.append([
+                        float(interp_func_x(idx)),
+                        float(interp_func_y(idx)),
+                        float(interp_func_z(idx))
+                    ])
 
             #new_points_interp = self.InterpolateCoronaryCenterline(new_points_sorted)
             
