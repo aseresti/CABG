@@ -2,6 +2,7 @@ import os
 import sys
 import glob
 import vtk
+vtk.vtkObject.GlobalWarningDisplayOff()
 import argparse
 import numpy as np
 from scipy.interpolate import interp1d
