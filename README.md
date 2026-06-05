@@ -51,7 +51,7 @@ The repository includes:
 - Python ≥ 3.10
 - Core libraries: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scipy`, `statsmodels`
 
-
+---
 Please cite this article as:
 
 ```bash
