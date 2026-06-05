@@ -54,7 +54,7 @@ The repository includes:
 Install dependencies with:
 
 
-
+```bash
 @article{Seresti2026,
   title   = {Per-vessel myocardial blood flow improvement after coronary artery bypass graft surgery quantified by CT myocardial perfusion imaging},
   author  = {Seresti, Anahita and Castillo, Edgard and Fahmy, Seraphim and Menon, Karthik and Ahmed, Abdrabu Hamid and Aung, Phyo Phyo and Malik, Sachin Basiq and Nguyen, Patricia Kim Phuong and Boyd, Jack and Marsden, Alison L. and Khan, M. Owais and Nieman, Koen},
@@ -62,3 +62,4 @@ Install dependencies with:
   year    = {2026},
   doi     = {10.1016/j.jcct.2026.05.009}
 }
+```
