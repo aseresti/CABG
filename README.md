@@ -23,27 +23,18 @@ The repository includes:
 
 ## Repository Structure
 
-
+```
 ├── data/   
-
 ├── scripts/             
-
 │   ├── dumps/
-
 │   ├── ImageTools/
-
 │   ├── MBFTools/
-
 │   └── SimVascularTools/
-
 ├── main.ipynb.         # main notebook for data analysis             
-
 ├── figures/               
-
 ├── requirements.txt
-
 └── README.md
-
+```
 ---
 
 ## Requirements
