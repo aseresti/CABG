@@ -24,15 +24,24 @@ The repository includes:
 ## Repository Structure
 
 
-├── data/                  
+├── data/   
+
 ├── scripts/             
+
 │   ├── dumps/
+
 │   ├── ImageTools/
+
 │   ├── MBFTools/
+
 │   └── SimVascularTools/
+
 ├── main.ipynb.         # main notebook for data analysis             
+
 ├── figures/               
+
 ├── requirements.txt
+
 └── README.md
 
 ---
@@ -44,8 +53,6 @@ The repository includes:
 
 Install dependencies with:
 
-```bash
-pip install -r requirements.txt
 
 
 @article{Seresti2026,
