@@ -10,7 +10,7 @@ import vtk
 import argparse
 import numpy as np
 import SimpleITK as sitk
-from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
+# from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 
 def read_h5_transform(transform_file):
     # Read the H5 transform file and extract the parameters
