@@ -132,32 +132,32 @@ def transform_points(vtu_data, transform):
 
     return moving_mesh
 
-# def project_labels_to_original_map(re_registered_mbf_map, original_mbf_map):
-#     # todo: use a different method
-#     source_points = re_registered_mbf_map.GetPoints()
-#     kd_tree = vtk.vtkKdTreePointLocator()
-#     kd_tree.SetDataSet(re_registered_mbf_map)  
-#     kd_tree.BuildLocator()
+def project_labels_to_original_map(re_registered_mbf_map, original_mbf_map):
+    # todo: use a different method
+    source_points = re_registered_mbf_map.GetPoints()
+    kd_tree = vtk.vtkKdTreePointLocator()
+    kd_tree.SetDataSet(re_registered_mbf_map)  
+    kd_tree.BuildLocator()
 
-#     source_array = re_registered_mbf_map.GetPointData().GetArray("TerritoryMaps")
-#     target_array = vtk.vtkDoubleArray()
-#     target_array.SetName("ProjectedTerritoryMaps")
-#     target_array.SetNumberOfComponents(1)
-#     target_array.SetNumberOfTuples(original_mbf_map.GetNumberOfPoints())
+    source_array = re_registered_mbf_map.GetPointData().GetArray("TerritoryMaps")
+    target_array = vtk.vtkDoubleArray()
+    target_array.SetName("ProjectedTerritoryMaps")
+    target_array.SetNumberOfComponents(1)
+    target_array.SetNumberOfTuples(original_mbf_map.GetNumberOfPoints())
 
-#     target_points = original_mbf_map.GetPoints()
-#     num_target_points = target_points.GetNumberOfPoints()
-#     for i in range(num_target_points):
-#         pt = target_points.GetPoint(i)
-#         # Find the closest point ID in the source mesh
-#         closest_id = kd_tree.FindClosestPoint(pt)
+    target_points = original_mbf_map.GetPoints()
+    num_target_points = target_points.GetNumberOfPoints()
+    for i in range(num_target_points):
+        pt = target_points.GetPoint(i)
+        # Find the closest point ID in the source mesh
+        closest_id = kd_tree.FindClosestPoint(pt)
         
-#         # Extract data value and insert it into the target array
-#         val = source_array.GetTuple(closest_id)
-#         target_array.InsertNextTuple(val)
+        # Extract data value and insert it into the target array
+        val = source_array.GetTuple(closest_id)
+        target_array.InsertNextTuple(val)
 
-#     original_mbf_map.GetPointData().AddArray(target_array)
-#     return original_mbf_map
+    original_mbf_map.GetPointData().AddArray(target_array)
+    return original_mbf_map
 
 def interpolate_labels_to_original_map(re_registered_mbf_map, original_mbf_map):
     interpolator = vtk.vtkPointInterpolator()
