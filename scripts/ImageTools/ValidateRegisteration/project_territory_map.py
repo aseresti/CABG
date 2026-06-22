@@ -141,7 +141,7 @@ def project_labels_to_original_map(re_registered_mbf_map, original_mbf_map):
 
     source_array = re_registered_mbf_map.GetPointData().GetArray("TerritoryMaps")
     target_array = vtk.vtkDoubleArray()
-    target_array.SetName("ProjectedTerritoryMaps")
+    target_array.SetName("TerritoryMaps")
     target_array.SetNumberOfComponents(1)
     target_array.SetNumberOfTuples(original_mbf_map.GetNumberOfPoints())
 
@@ -180,13 +180,9 @@ def main(args):
     registered_mbf_map = read_vtu_file(args.registered_mbf_map)
     original_mbf_map = read_vtu_file(args.original_mbf_map)
 
-    print(registered_mbf_map.GetNumberOfPoints())
-    print(original_mbf_map.GetNumberOfPoints())
-
     for i in range(registered_mbf_map.GetPointData().GetNumberOfArrays()):
         print(registered_mbf_map.GetPointData().GetArrayName(i))
 
-    print(vtk_to_numpy(registered_mbf_map.GetPointData().GetArray("TerritoryMaps")))
 
     # Apply the inverted transform to the registered MBF map
     re_registered_mbf_map = apply_transform_to_vtu(registered_mbf_map, inverted_transform)#transform_points(registered_mbf_map, inverted_transform)#apply_transform_to_vtu(registered_mbf_map, inverted_transform)
@@ -195,7 +191,8 @@ def main(args):
     output_folder = os.path.join(output_folder, os.path.pardir)
     output_folder = os.path.join(output_folder, "re-registered")
     name = os.path.basename(args.registered_mbf_map)
-    name = name.replace("registered", "re-registered")
+    print(name)
+    #name = name.replace("registered", "re-registered")
     # write_vtu_file(re_registered_mbf_map, os.path.join(output_folder, name))
 
     # Use a vtk interpolator to project the territory labels in the re-registered map to the original MBF map
@@ -203,11 +200,11 @@ def main(args):
     territory_array = vtk_to_numpy(projected_map.GetPointData().GetArray("TerritoryMaps")).astype(int)
     projected_map.GetPointData().RemoveArray("TerritoryMaps")
     new_territory_array = numpy_to_vtk(territory_array, deep=True)
-    new_territory_array.SetName("ProjectedTerritoryMaps")
+    new_territory_array.SetName("TerritoryMaps")
     projected_map.GetPointData().AddArray(new_territory_array)
 
     # Save the projected file as a .vtu file (this is a placeholder, actual saving logic will depend on your specific requirements)
-    name = name.replace("re-registered", "projected")
+    name = name.replace("Registered", "projected")
     write_vtu_file(projected_map, os.path.join(output_folder, name))
 
 if __name__ == "__main__":
