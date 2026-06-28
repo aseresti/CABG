@@ -1,0 +1,248 @@
+"""
+This script takes the Elastix transform .h5 file and inverts it.
+Then, it applies the inverted transform to the regitered MBF map to get the original map in the original space.
+Next, it uses a vtk interpolator to project the territory labels in the re-registered map to the original MBF map.
+Finally, the projected file is saved as a .vtu file.
+"""
+
+import os
+import vtk
+import argparse
+import numpy as np
+import SimpleITK as sitk
+from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
+
+def read_h5_transform(transform_file, registered_mesh=None, unregistered_mesh=None):
+    # Read the H5 transform file and extract the parameters
+    transform = sitk.ReadTransform(transform_file)
+    inverse_transform = transform.GetInverse()
+
+    if registered_mesh is None or unregistered_mesh is None:
+        return inverse_transform
+
+    # Elastix .h5 files in this project are not stored with a consistent direction:
+    # some are moving->fixed (need inverse to map registered back to unregistered),
+    # others are already fixed->moving (use the file transform directly).
+    reg_pts = vtk_to_numpy(registered_mesh.GetPoints().GetData())
+    unreg_pts = vtk_to_numpy(unregistered_mesh.GetPoints().GetData())
+    sample_idx = np.linspace(0, len(reg_pts) - 1, min(200, len(reg_pts)), dtype=int)
+    unreg_idx = np.linspace(0, len(unreg_pts) - 1, min(200, len(unreg_pts)), dtype=int)
+
+    def median_gap(tf):
+        mapped = np.array([tf.TransformPoint(reg_pts[i].tolist()) for i in sample_idx])
+        target = unreg_pts[unreg_idx]
+        tmp = vtk.vtkUnstructuredGrid()
+        pts = vtk.vtkPoints()
+        pts.SetData(numpy_to_vtk(mapped.astype(np.float64)))
+        tmp.SetPoints(pts)
+        kd = vtk.vtkKdTreePointLocator()
+        kd.SetDataSet(tmp)
+        kd.BuildLocator()
+        dists = [
+            np.linalg.norm(mapped[kd.FindClosestPoint(target[i])] - target[i])
+            for i in range(len(target))
+        ]
+        return np.median(dists)
+
+    if median_gap(inverse_transform) <= median_gap(transform):
+        return inverse_transform
+    return transform
+
+def read_vtu_file(vtu_file):
+    # Read the .vtu file using VTK
+    reader = vtk.vtkXMLUnstructuredGridReader()
+    reader.SetFileName(vtu_file)
+    reader.Update()
+    return reader.GetOutput()
+
+def write_vtu_file(vtu_data, output_file):
+    # Write the .vtu file using VTK
+    writer = vtk.vtkXMLUnstructuredGridWriter()
+    writer.SetFileName(output_file)
+    writer.SetInputData(vtu_data)
+    writer.Write()
+
+def apply_transform_to_vtu(vtu_data, transform):
+    # Convert sitk transform to VTK transform
+    matrix = transform.GetParameters()[:9]
+    t = transform.GetParameters()[9:12]
+    c = transform.GetFixedParameters()
+
+    m = [matrix[0:3], matrix[3:6], matrix[6:9]]
+    
+    # T_adjusted = np.array(t) - np.array(c) + np.dot(np.array(m), np.array(c))
+    # vt_t_adjusted = numpy_to_vtk(T_adjusted, deep=True)
+    # vtk_transform = vtk.vtkTransform()
+    # vtk_transform.SetMatrix([m[0][0], m[0][1], m[0][2], 0,
+    #                             m[1][0], m[1][1], m[1][2], 0,
+    #                             m[2][0], m[2][1], m[2][2], 0,
+    #                             0, 0, 0, 1])
+    # vtk_transform.Translate(T_adjusted)
+
+    vtk_mat = vtk.vtkMatrix4x4()
+    vtk_mat.Identity()
+
+    for i in range(3):
+        for j in range(3):
+            vtk_mat.SetElement(i, j, m[i][j])
+
+    
+    t_adj = [0.0, 0.0, 0.0]
+    for i in range(3):
+        t_adj[i] = t[i] + c[i] - (m[i][0]*c[0] + m[i][1]*c[1] + m[i][2]*c[2])
+
+    vtk_mat.SetElement(0, 3, t_adj[0])
+    vtk_mat.SetElement(1, 3, t_adj[1])
+    vtk_mat.SetElement(2, 3, t_adj[2])
+
+    # sitk and vtk use different coordinate systems
+    lps_to_ras = vtk.vtkMatrix4x4()
+    lps_to_ras.Identity()
+    lps_to_ras.SetElement(0, 0, 1.0)  
+    lps_to_ras.SetElement(-1, 1, 1.0)
+
+    final_matrix = vtk.vtkMatrix4x4()
+    vtk.vtkMatrix4x4.Multiply4x4(lps_to_ras, vtk_mat, final_matrix)
+    vtk.vtkMatrix4x4.Multiply4x4(final_matrix, lps_to_ras, final_matrix)
+
+    vtk_transform = vtk.vtkTransform()
+    vtk_transform.SetMatrix(final_matrix)
+
+    # Apply the given transform using VTK's vtkTransform and vtkTransformFilter
+    transform_filter = vtk.vtkTransformFilter()
+    transform_filter.SetInputData(vtu_data)
+    transform_filter.SetTransform(vtk_transform)
+    transform_filter.Update()
+
+    return transform_filter.GetOutput()
+
+def transform_points(vtu_data, transform):
+    moving_mesh = vtk.vtkUnstructuredGrid()
+    moving_mesh.ShallowCopy(vtu_data)
+
+    matrix = transform.GetParameters()[:9]
+    t = transform.GetParameters()[9:12]
+    c = transform.GetFixedParameters()
+
+    m = [matrix[0:3], matrix[3:6], matrix[6:9]]
+
+
+    vtk_mat = vtk.vtkMatrix4x4()
+    vtk_mat.Identity()
+
+    for i in range(3):
+        for j in range(3):
+            vtk_mat.SetElement(i, j, m[i][j])
+
+    
+    t_adj = [0.0, 0.0, 0.0]
+    for i in range(3):
+        t_adj[i] = t[i] + c[i] - (m[i][0]*c[0] + m[i][1]*c[1] + m[i][2]*c[2])
+
+    vtk_mat.SetElement(0, 3, t_adj[0])
+    vtk_mat.SetElement(1, 3, t_adj[1])
+    vtk_mat.SetElement(2, 3, t_adj[2])
+
+    # sitk and vtk use different coordinate systems
+    lps_to_ras = vtk.vtkMatrix4x4()
+    lps_to_ras.Identity()
+    lps_to_ras.SetElement(0, 0, 1.0)  
+    lps_to_ras.SetElement(-1, 1, 1.0)
+
+    final_matrix = vtk.vtkMatrix4x4()
+    vtk.vtkMatrix4x4.Multiply4x4(lps_to_ras, vtk_mat, final_matrix)
+    vtk.vtkMatrix4x4.Multiply4x4(final_matrix, lps_to_ras, final_matrix)
+
+    vtk_transform = vtk.vtkTransform()
+    vtk_transform.SetMatrix(final_matrix)
+
+    transformed_points = vtk.vtkPoints()
+    vtk_transform.TransformPoints(moving_mesh.GetPoints(), transformed_points)
+    moving_mesh.SetPoints(transformed_points)
+
+    return moving_mesh
+
+def project_labels_to_original_map(re_registered_mbf_map, original_mbf_map):
+    # todo: use a different method
+    source_points = re_registered_mbf_map.GetPoints()
+    kd_tree = vtk.vtkKdTreePointLocator()
+    kd_tree.SetDataSet(re_registered_mbf_map)  
+    kd_tree.BuildLocator()
+
+    source_array = re_registered_mbf_map.GetPointData().GetArray("TerritoryMaps")
+    target_array = vtk.vtkDoubleArray()
+    target_array.SetName("TerritoryMaps")
+    target_array.SetNumberOfComponents(1)
+    target_array.SetNumberOfTuples(original_mbf_map.GetNumberOfPoints())
+
+    target_points = original_mbf_map.GetPoints()
+    num_target_points = target_points.GetNumberOfPoints()
+    for i in range(num_target_points):
+        pt = target_points.GetPoint(i)
+        # Find the closest point ID in the source mesh
+        closest_id = kd_tree.FindClosestPoint(pt)
+        
+        # Extract data value and insert it into the target array
+        val = source_array.GetTuple(closest_id)
+        target_array.InsertNextTuple(val)
+
+    original_mbf_map.GetPointData().AddArray(target_array)
+    return original_mbf_map
+
+def interpolate_labels_to_original_map(re_registered_mbf_map, original_mbf_map):
+    interpolator = vtk.vtkPointInterpolator()
+    interpolator.SetInputData(original_mbf_map)
+    interpolator.SetSourceData(re_registered_mbf_map)
+
+    locator = vtk.vtkPointLocator()
+    kernel = vtk.vtkShepardKernel()
+    kernel.SetRadius(0.2)
+
+    interpolator.SetLocator(locator)
+    interpolator.SetKernel(kernel)
+    interpolator.Update()
+
+    return interpolator.GetOutput()
+
+def main(args):
+    # Read the transform parameters
+    dir_ = "/Volumes/T7_Research/CABG/05_PrePostCABG/Validate_Registeration"
+    registered_mbf_map = read_vtu_file(os.path.join(dir_, "registered", f"{args.case}B.vtu"))
+    original_mbf_map = read_vtu_file(os.path.join(dir_, "unregistered", f"{args.case}B.vtu"))
+    back_to_unregistered_transform = read_h5_transform(
+        os.path.join(dir_, "Transforms", f"{args.case}.h5"),
+        registered_mbf_map,
+        original_mbf_map,
+    )
+
+    for i in range(registered_mbf_map.GetPointData().GetNumberOfArrays()):
+        print(registered_mbf_map.GetPointData().GetArrayName(i))
+
+
+    # Apply the inverted transform to the registered MBF map
+    re_registered_mbf_map = apply_transform_to_vtu(registered_mbf_map, back_to_unregistered_transform)
+    
+    
+    output_folder = os.path.join(dir_, "re-registered")
+    
+    
+    write_vtu_file(re_registered_mbf_map, os.path.join(output_folder, f"{args.case}_re-registered.vtu"))
+
+    # Use a vtk interpolator to project the territory labels in the re-registered map to the original MBF map
+    projected_map = interpolate_labels_to_original_map(re_registered_mbf_map, original_mbf_map)
+    territory_array = vtk_to_numpy(projected_map.GetPointData().GetArray("TerritoryMaps")).astype(int)
+    projected_map.GetPointData().RemoveArray("TerritoryMaps")
+    new_territory_array = numpy_to_vtk(territory_array, deep=True)
+    new_territory_array.SetName("TerritoryMaps")
+    projected_map.GetPointData().AddArray(new_territory_array)
+
+    # Save the projected file as a .vtu file (this is a placeholder, actual saving logic will depend on your specific requirements)
+    # name = name.replace("_Registered", "")
+    write_vtu_file(projected_map, os.path.join(output_folder, f"{args.case}B.vtu"))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Invert Elastix transform and apply it to the registered MBF map.")
+    parser.add_argument("-case", type=str, required=True, dest="case")
+    
+    args = parser.parse_args()
+    main(args)
